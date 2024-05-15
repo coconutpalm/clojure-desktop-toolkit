@@ -3,7 +3,7 @@
 This Git repo contains:
 
 1.  A Maven repo containing SWT 4.2 to 4.31 on all supported platforms along with scripts to scrape/merge new releases as they are published at Eclipse.
-2.  A Clojure deps.edn project with a functional-style SWT DSL/wrapper that makes working with SWT user interfaces straightforward from Clojure
+2.  A (WIP) Clojure deps.edn project with a functional-style SWT DSL/wrapper that makes working with SWT user interfaces straightforward from Clojure
 
 ## Why?
 
