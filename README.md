@@ -9,7 +9,7 @@ Originally from https://github.com/maven-eclipse/maven-eclipse.github.io
 
 ## Why?
 
-Clojure needs a mature UI library with idiomatic FP-style bindings.  SWT is one such library; this project aims to supply the bindings.
+Clojure needs a mature UI library with idiomatic FP-style bindings.  SWT is one such UI library; this project aims to supply the bindings.
 
 More generally:
 
