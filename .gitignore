@@ -1,2 +1,6 @@
 downloads
 tmp
+.clj-kondo
+.cpcache
+.lsp
+.portal
