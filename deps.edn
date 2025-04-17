@@ -1,0 +1,7 @@
+{:paths ["src" "dev"]
+
+ :mvn/repos {"clojure-swt.github.io" {:url "https://clojure-swt.github.io/maven"}}
+
+ :deps {org.clojure/clojure {:mvn/version "1.12.0-alpha12"}
+        org.eclipse.swt/org.eclipse.swt.win32.win32.x86_64 {:mvn/version "4.6.1"}
+        com.hyperfiddle/rcf {:mvn/version "20220926-202227"}}}
