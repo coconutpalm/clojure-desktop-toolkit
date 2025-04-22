@@ -17,8 +17,6 @@
 
 ;; TODO
 ;;
-;; Host InsideOut in FuseCode
-;;
 ;; Fix event handler bug
 ;;  (on-widget-selected [props event] & forms)
 ;; Reflectively (.addSelectionListener (proxy [SelectionAdapter] [] (widgetSelected [event] ...
