@@ -2,9 +2,10 @@
 
 (ns ui.internal.reflectivity
   (:require [clojure.string :as str]
-            [clj-foundation.conversions :refer :all]
-            [clj-foundation.data :refer [->kebab-case]]
-            [clj-foundation.interop :refer [array]])
+            [ui.internal.SWT-deps :refer [swt-libs-loaded?]]
+            [righttypes.conversions :refer :all]
+            [righttypes.util.names :refer [->kebab-case]]
+            [righttypes.util.interop :refer [array]])
   (:import [java.lang.reflect Modifier Field]
            [clojure.lang Symbol]
            [org.reflections Reflections]
@@ -12,7 +13,11 @@
            [org.eclipse.swt.custom SashFormLayout ScrolledCompositeLayout CTabFolderLayout]
            [org.eclipse.swt.widgets Shell Composite Widget Layout
             Tray TaskBar TaskItem ScrollBar Item Control]
-           [org.eclipse.swt.opengl GLCanvas]))
+           #_[org.eclipse.swt.opengl GLCanvas]))
+
+(comment
+  (println swt-libs-loaded?)
+  ,)
 
 (def swt-index
   (-> (Reflections. (to-array [(SubTypesScanner.)]))))
@@ -40,7 +45,7 @@
 
 (def swt-layouts (->> (.getSubTypesOf swt-index Layout)
                     (seq)
-                    (remove #{SashFormLayout ScrolledCompositeLayout CTabFolderLayout})))
+                    (remove #{})))
 
 (def swt-listeners (->> (.getSubTypesOf swt-index org.eclipse.swt.internal.SWTEventListener)
                       (filter #(.endsWith (.getSimpleName %) "Listener"))

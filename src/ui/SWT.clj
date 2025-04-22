@@ -6,8 +6,7 @@
             [ui.internal.docs :as docs]
             [ui.internal.reflectivity :as meta]
             [ui.inits :as i]
-            [clj-foundation.patterns :refer [nothing something?]]
-            [clj-foundation.data :refer [nothing->identity]])
+            [righttypes.nothing :refer [nothing something nothing->identity]])
   (:import [clojure.lang IFn]
            [org.eclipse.swt SWT]
            [org.eclipse.swt.graphics GC Image]
@@ -233,7 +232,7 @@
   "Returns true if executing on the UI thread and false otherwise."
   []
   (let [t (Thread/currentThread)
-        dt (and (something? @display)
+        dt (and (something @display)
                 (.getThread @display))]
     (= t dt)))
 
