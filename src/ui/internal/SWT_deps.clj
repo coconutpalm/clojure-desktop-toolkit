@@ -4,7 +4,7 @@
   "Dynamically resolve/load SWT subsystem dependencies when this namespace is required"
   (:require
    [clojure.java.io :as io]
-   [insideout.dynamo :as dynamo]))
+   [clojure.repl.deps :refer [sync-deps add-libs]]))
 
 
 (def platform-lib-suffix
@@ -30,33 +30,32 @@
 
 ;; SWT and dependencies ------------------------------------------------------------
 
-;; Migrate to Equodev Chromium
-;;  https://github.com/equodev/chromium
+(def ^:dynamic *swt-version* "4.35")
 
-(def ^:dynamic *swt-version* "3.116.0")
+(def swt-libs {(->platform-lib 'org.eclipse.swt/org.eclipse.swt) {:mvn/version *swt-version*}})
 
-(def swt-lib      [(->platform-lib 'org.eclipse.platform/org.eclipse.swt)
-                   *swt-version*])
-(def swt-chromium [(->platform-lib 'org.eclipse.platform/org.eclipse.swt.browser.chromium)
-                   *swt-version*])
-(def chromium-jar (->platform-resource-jar 'chromium/com.make.chromium.cef "0.4.0.202005172227"))
+(comment 
+  'org.eclipse.swt/org.eclipse.swt {:mvn/version *swt-version*}
+  :eoc)
 
-(def reflections-lib '[org.reflections/reflections "0.9.12"])
+(defonce
+  ^{:doc "Result of loading SWT subsystem dependencies."}
+  swt-libs-loaded? (add-libs swt-libs))
 
+;; Chromium and dependencies --------------------------------------------------------
 
-(defonce lib-resolutions
-  (do
-    (dynamo/resolve-libs [swt-lib swt-chromium reflections-lib])
-    (when chromium-jar
-      (dynamo/add-urls-to-classpath [chromium-jar]))))
-
-
-;; org.eclipse.swt.browser.chromium.
-;; Original jar locations
+;; See:
 ;;
-;; http://dl.maketechnology.io/chromium-cef/rls/repository/plugins/com.make.chromium.cef.gtk.linux.x86_64_0.4.0.202005172227.jar
-;; http://dl.maketechnology.io/chromium-cef/rls/repository/plugins/com.make.chromium.cef.cocoa.macosx.x86_64_0.4.0.202005172227.jar
-;; http://dl.maketechnology.io/chromium-cef/rls/repository/plugins/com.make.chromium.cef.win32.win32.x86_64_0.4.0.202005172227.jar
+;; https://github.com/equodev/chromium and
+;; https://storage.googleapis.com/equo-chromium-swt-ce/oss/mvn/index.html
+
+; Oddly, these URLs resolve, but fetching via the Maven repository doesn't?
+;https://dl.equo.dev/chromium-swt-ce/oss/mvn/com/equo/com.equo.chromium.cef.gtk.linux.x86_64/128.0.0/com.equo.chromium.cef.gtk.linux.x86_64-128.0.0.jar
+;https://dl.equo.dev/chromium-swt-ce/oss/mvn/com/equo/com.equo.chromium.cef.cocoa.macosx.x86_64/128.0.0/com.equo.chromium.cef.cocoa.macosx.x86_64-128.0.0.jar
+
+(def ^:dynamic *chromium-version* "128.0.0")
+
+(def equo-libs {'com.equo/com.equo.chromium {:mvn/version *chromium-version*}
+                (->platform-lib 'com.equo/com.equo.chromium.cef) {:mvn/version *chromium-version*}})
 
 
-;; com.make.chromium.cef.feature_0.4.0.202005172227
