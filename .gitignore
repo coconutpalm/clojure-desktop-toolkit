@@ -4,3 +4,6 @@ tmp
 .cpcache
 .lsp
 .portal
+.calva
+.vscode
+.nrepl-port
