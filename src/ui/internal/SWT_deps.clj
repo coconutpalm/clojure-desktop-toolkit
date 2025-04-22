@@ -57,5 +57,6 @@
 
 (def equo-libs {'com.equo/com.equo.chromium {:mvn/version *chromium-version*}
                 (->platform-lib 'com.equo/com.equo.chromium.cef) {:mvn/version *chromium-version*}})
+                
 
 
