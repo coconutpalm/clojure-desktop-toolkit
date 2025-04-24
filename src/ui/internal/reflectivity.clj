@@ -1,8 +1,8 @@
 (remove-ns 'ui.internal.reflectivity)
 
 (ns ui.internal.reflectivity
-  (:require [clojure.string :as str]
-            [ui.internal.SWT-deps :refer [swt-libs-loaded?]]
+  (:require [ui.internal.SWT-deps :refer [swt-libs-loaded?]]
+            [clojure.string :as str]
             [righttypes.conversions :refer :all]
             [righttypes.util.names :refer [->kebab-case]]
             [righttypes.util.interop :refer [array]])
@@ -13,11 +13,9 @@
            [org.eclipse.swt.custom SashFormLayout ScrolledCompositeLayout CTabFolderLayout]
            [org.eclipse.swt.widgets Shell Composite Widget Layout
             Tray TaskBar TaskItem ScrollBar Item Control]
-           #_[org.eclipse.swt.opengl GLCanvas]))
+           [org.eclipse.swt.opengl GLCanvas]))
 
-(comment
-  (println swt-libs-loaded?)
-  ,)
+swt-libs-loaded?
 
 (def swt-index
   (-> (Reflections. (to-array [(SubTypesScanner.)]))))
@@ -45,16 +43,17 @@
 
 (def swt-layouts (->> (.getSubTypesOf swt-index Layout)
                     (seq)
-                    (remove #{})))
+                    (remove #{SashFormLayout ScrolledCompositeLayout CTabFolderLayout})))
 
-(def swt-listeners (->> (.getSubTypesOf swt-index org.eclipse.swt.internal.SWTEventListener)
-                      (filter #(.endsWith (.getSimpleName %) "Listener"))
-                      (filter #(> 0 (.indexOf (.getName %) "internal")))
-                      (sort-by #(.getSimpleName %))
-                      (map (fn [clazz] [clazz (->> (.getMethods clazz)
-                                                (remove #(.endsWith (str (.getDeclaringClass %)) "Object"))
-                                                (remove #(not= 0 (bit-and Modifier/STATIC (.getModifiers %)))))]))
-                      (into {})))
+(def swt-listeners (->> (.getSubTypesOf swt-index java.util.EventListener)
+                        (filter #(.endsWith (.getSimpleName %) "Listener"))
+                        (filter #(.contains (.getName %) "org.eclipse.swt."))
+                        (filter #(> 0 (.indexOf (.getName %) "internal")))
+                        (sort-by #(.getSimpleName %))
+                        (map (fn [clazz] [clazz (->> (.getMethods clazz)
+                                                       (remove #(.endsWith (str (.getDeclaringClass %)) "Object"))
+                                                       (remove #(not= 0 (bit-and Modifier/STATIC (.getModifiers %)))))]))
+                        (into {})))
 
 ;; TODO: Generate docstring for swt-events
 (def widget-to-listener-methods
