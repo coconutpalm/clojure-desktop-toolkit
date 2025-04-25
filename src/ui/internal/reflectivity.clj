@@ -21,29 +21,29 @@ swt-libs-loaded?
   (-> (Reflections. (to-array [(SubTypesScanner.)]))))
 
 (def swt-composites (->> (.getSubTypesOf swt-index Composite)
-                       (seq)
-                       (remove #{Shell GLCanvas})
-                       (remove #(.endsWith (.getName %) "OleClientSite"))
-                       (remove #(.endsWith (.getName %) "OleControlSite"))
-                       (remove #(.endsWith (.getName %) "WebSite"))
-                       (#(conj % Composite))))
+                         (seq)
+                         (remove #{Shell GLCanvas})
+                         (remove #(.endsWith (.getName %) "OleClientSite"))
+                         (remove #(.endsWith (.getName %) "OleControlSite"))
+                         (remove #(.endsWith (.getName %) "WebSite"))
+                         (#(conj % Composite))))
 
 (def swt-widgets (->> (.getSubTypesOf swt-index Widget)
-                    (seq)
-                    (remove #(.isAssignableFrom Composite %))
-                    (remove #(.isAssignableFrom Item %))
-                    (remove #(not (nil? (.getEnclosingClass %))))
-                    (remove #{Control Tray TaskBar TaskItem ScrollBar})))
+                      (seq)
+                      (remove #(.isAssignableFrom Composite %))
+                      (remove #(.isAssignableFrom Item %))
+                      (remove #(not (nil? (.getEnclosingClass %))))
+                      (remove #{Control Tray TaskBar TaskItem ScrollBar})))
 
 (def swt-items (->> (.getSubTypesOf swt-index Item)
-                  (seq)
-                  (remove #{TaskItem})
-                  (remove #(not (nil? (.getEnclosingClass %))))
-                  (sort-by #(.getSimpleName %))))
+                    (seq)
+                    (remove #{TaskItem})
+                    (remove #(not (nil? (.getEnclosingClass %))))
+                    (sort-by #(.getSimpleName %))))
 
 (def swt-layouts (->> (.getSubTypesOf swt-index Layout)
-                    (seq)
-                    (remove #{SashFormLayout ScrolledCompositeLayout CTabFolderLayout})))
+                      (seq)
+                      (remove #{SashFormLayout ScrolledCompositeLayout CTabFolderLayout})))
 
 (def swt-listeners (->> (.getSubTypesOf swt-index java.util.EventListener)
                         (filter #(.endsWith (.getSimpleName %) "Listener"))
@@ -59,16 +59,16 @@ swt-libs-loaded?
 (def widget-to-listener-methods
   (apply merge
          (->> (concat swt-composites swt-widgets swt-items)
-            (map (fn [clazz] {clazz (->> (.getMethods clazz)
-                                      (remove #(= "addListener" (.getName %)))
-                                      (filter (fn [m] (let [name (.getName m)]
-                                                       (and (.startsWith name "add")
-                                                            (.endsWith name "Listener")))))
-                                      (map (fn [m]
-                                             (let [listener-type (first (.getParameterTypes m))]
-                                               {:add-method (.getName m)
-                                                :listener-type listener-type
-                                                :listener-methods (get swt-listeners listener-type)}))))})))))
+              (map (fn [clazz] {clazz (->> (.getMethods clazz)
+                                           (remove #(= "addListener" (.getName %)))
+                                           (filter (fn [m] (let [name (.getName m)]
+                                                             (and (.startsWith name "add")
+                                                                  (.endsWith name "Listener")))))
+                                           (map (fn [m]
+                                                  (let [listener-type (first (.getParameterTypes m))]
+                                                    {:add-method (.getName m)
+                                                     :listener-type listener-type
+                                                     :listener-methods (get swt-listeners listener-type)}))))})))))
 
 (def swt-event-methods (mapcat (fn [[_ events]] events) swt-listeners))
 
