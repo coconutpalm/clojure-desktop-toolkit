@@ -1,3 +1,5 @@
+(remove-ns 'ui.SWT)
+
 (ns ui.SWT
   (:refer-clojure :exclude [list])
   (:require [ui.internal.SWT-deps]
@@ -118,6 +120,17 @@
   (int (apply bit-or styles)))
 
 
+(defn fill-layout
+  "An init function for a fill layout."
+  [& args]
+  (let [inits (i/args->inits args)]
+    (fn [props parent]
+      (let [layout (FillLayout.)]
+        (i/run-inits props layout inits)
+        (.setLayout parent layout)
+        (.layout parent)))))
+
+
 (defn tray-item
   "Define a system tray item.  Must be a child of the application node.  The :image
   and :highlight-image should be 16x16 SWT Image objects.  `on-widget-selected` is
@@ -191,8 +204,8 @@
          :items (meta/fn-names<- meta/swt-items)
          :events (->> (.getSubTypesOf meta/swt-index TypedEvent) (seq) (sort-by #(.getSimpleName %)))
          :listeners meta/swt-listeners
-         :graphics (meta/types-in-package "graphics")
-         :program (meta/types-in-package "program")
+         :graphics (meta/types-in-swt-package "graphics")
+         :program (meta/types-in-swt-package "program")
          :layout-managers (meta/layoutdata-by-layout)}})
 
 (defn swtdoc
@@ -229,7 +242,7 @@
 (defn ui-thread?
   "Nullary form: Returns true if the current thread is the UI thread and false otherwise.
    Unary form: Returns true if the specified thread is the UI thread and false otherwise."
-  ([t]
+  ([^Thread t]
    (let [dt (and (something @display)
                  (.getThread @display))]
      (= t dt)))
@@ -293,11 +306,12 @@
   "Mount the child specified by child-init-fn inside parent passing initial-props-value inside the props atom.
   Returns a map containing the :child and resulting :props"
   ([parent props child-init-fn]
-   {:child (child-init-fn props parent)
+   (reset! display (Display/getDefault)) 
+   {:child (child-init-fn props (if parent parent @display))
     :props @props})
+  
   ([[parent props] child-init-fn]
-   {:child (child-init-fn props parent)
-    :props @props}))
+   (child-of parent props child-init-fn)))
 
 
 (defn application
@@ -322,11 +336,16 @@
           (when (not disposed)
             (recur (process-event d)))))
 
-      (process-pending-events!))))
+      (process-pending-events!)
+      
+      (catch Throwable t 
+        t))))
 
 
 ;; =====================================================================================
 ;; An example app to test/prove the library's features
+
+(def state (atom nil))
 
 (defn example-app []
   (ui-scale! 2)
@@ -338,7 +357,7 @@
 
           (sash-form SWT/HORIZONTAL
                      (text (| SWT/MULTI SWT/V_SCROLL) (id! :ui/textpane)
-                           (on-modify-text [props _] (println (.getText (:ui/textpane @props)))))
+                           #_(on-modify-text [props _] (println (.getText (:ui/textpane @props)))))
 
                      ;; sudo apt install libwebkit2gtk-4.0-37 on ubuntu
                      (browser SWT/WEBKIT (id! :ui/editor)
@@ -347,16 +366,16 @@
 
                      :weights [20 80])
 
-          (on-shell-closed [props event] #_(when-not (:closing @props)
+          #_(on-shell-closed [props event] #_(when-not (:closing @props)
                                            (set! (. event doit) false)))
 
           (menu SWT/POP_UP (id! :ui/tray-menu)
                 (menu-item SWT/PUSH "&Quit"
-                           (on-widget-selected [props _]
+                           #_(on-widget-selected [props _]
                                                (swap! props #(update-in % [:closing] (constantly true)))
                                                (.close (:ui/shell @props))))))
 
-   (tray-item
+   #_(tray-item
     (on-menu-detected [props _]   (.setVisible (:ui/tray-menu @props) true))
     (on-widget-selected [props _] (let [s (:ui/shell @props)]
                                     (if (.isVisible s)
@@ -365,13 +384,37 @@
 
    (defmain [props parent]
      ;; Bind data layer to UI or...
+     (reset! state props)
      (println (str (:ui/editor @props) " " parent)))))
 
 
 (comment
-  (future (example-app))
+  (def app (future (example-app))) 
   
+  {:app app}
   (:editor @state)
+  {:state @state}
+  {:display @display}
+
+  (ui
+   (child-of @display @state
+            (shell "Browser 2" (id! :ui/shell)
+                   (fill-layout
+                    :margin-height 10
+                    :margin-width 10) 
+                   (browser SWT/WEBKIT (id! :ui/editor)
+                            :javascript-enabled true
+                            :url "https://www.google.com"))))
+  
+  (ui
+   (child-of @display @state
+             (shell "Text editor" (id! :ui/textedit)
+                    (fill-layout
+                     :margin-height 10
+                     :margin-width 10) 
+                    (text (| SWT/MULTI SWT/V_SCROLL) (id! :ui/textedit)
+                          (on-modify-text [props _] (println (.getText (:ui/textedit @props))))))))
+
   (ui (.dispose @display))
 
   :eoc
