@@ -92,8 +92,7 @@ swt-libs-loaded?
    methods))
 
 
-(defn init-for-event
-  ""
+(defn init-for-event 
   [^String delegate-method-name]
   (let [[listener-class
          methods] (event-method->listener delegate-method-name)
@@ -104,8 +103,8 @@ swt-libs-loaded?
 
     (list 'fn ['props 'parent]
           (list add-method 'parent
-           `(reify ~listener-class-name
-             ~@method-bodies)))))
+                `(reify ~listener-class-name
+                   ~@method-bodies)))))
 
 (defn on* [^String event-method-name [props-name e-name] forms]
   (let [delegate-fn (symbol "delegate")
@@ -129,7 +128,14 @@ swt-libs-loaded?
   `(let []
      ~@(map on-event-name-macro swt-event-methods)))
 
+(comment
+  (first swt-event-methods)
+  (on-event-name-macro (first swt-event-methods))
 
+  (init-for-event "widgetSelected")
+  (init-for-event "changed")
+
+  :eoc)
 
 (defn types-in-package [swt-package]
   (->> (Reflections. (array [Object]

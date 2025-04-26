@@ -1,6 +1,6 @@
 (ns ui.internal.docs
   (:require [ui.internal.reflectivity :as meta]
-            [clj-foundation.conversions :refer :all]))
+            [righttypes.conversions :refer :all]))
 
 
 (def ^:private eclipse-help-url-prefix
@@ -40,7 +40,7 @@
     (sequential? current-doc) (if (sequential? (first current-doc))
                                 (second (first (filter (fn [x] (>= (.indexOf (name-str (first x)) (name-str topic)) 0)) current-doc)))
                                 (first (filter (fn [x] (>= (.indexOf (name-str x) (name-str topic)) 0)) current-doc)))
-    :default nil))
+    :else nil))
 
 
 (defn swtdoc* [breadcrumb current-doc query]

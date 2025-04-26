@@ -1,6 +1,6 @@
 (ns ui.SWT-conversions
-  (:require [clj-foundation.interop :refer [array]]
-            [clj-foundation.conversions :refer [convert]]))
+  (:require [righttypes.util.interop :refer [array]]
+            [righttypes.conversions :refer [convert]]))
 
 
 (defonce ^:private string-array-class (class (array [String])))

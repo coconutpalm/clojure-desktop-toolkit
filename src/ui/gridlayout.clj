@@ -1,7 +1,7 @@
 (ns ui.gridlayout
   "Helpers for using SWT GridaLayout and GridData."
   (:require [ui.inits :refer [run-inits args->inits]]
-            [clj-foundation.interop :refer [set-fields!]])
+            [righttypes.util.interop :refer [set-fields!]])
   (:import [org.eclipse.swt SWT]
            [org.eclipse.swt.layout GridLayout GridData]))
 

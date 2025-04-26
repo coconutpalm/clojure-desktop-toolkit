@@ -1,11 +1,9 @@
-(remove-ns 'ui.SWT)
-
 (ns ui.SWT
   (:refer-clojure :exclude [list])
   (:require [ui.internal.SWT-deps]
             [ui.internal.docs :as docs]
             [ui.internal.reflectivity :as meta]
-            [ui.inits :as i]
+            [ui.inits :as i] 
             [righttypes.nothing :refer [nothing something nothing->identity]])
   (:import [clojure.lang IFn]
            [org.eclipse.swt SWT]
@@ -228,20 +226,22 @@
 ;; =====================================================================================
 ;; Event processing must happen on the UI thread.  Some helpers...
 
-(defn on-ui-thread?
-  "Returns true if executing on the UI thread and false otherwise."
-  []
-  (let [t (Thread/currentThread)
-        dt (and (something @display)
-                (.getThread @display))]
-    (= t dt)))
+(defn ui-thread?
+  "Nullary form: Returns true if the current thread is the UI thread and false otherwise.
+   Unary form: Returns true if the specified thread is the UI thread and false otherwise."
+  ([t]
+   (let [dt (and (something @display)
+                 (.getThread @display))]
+     (= t dt)))
+  ([] 
+   (ui-thread? (Thread/currentThread))))
 
 
 (defn with-ui*
   "Implementation detail: Use `sync-exec!` or `ui` instead.  Public because it's called
   from the `ui` macro."
   [f]
-  (if (on-ui-thread?)
+  (if (ui-thread?)
     (f)
     (let [r (runnable-fn f)]
       (.syncExec (Display/getDefault) r)
@@ -336,17 +336,18 @@
    (shell "Browser" (id! :ui/shell)
           :layout (FillLayout.)
 
-          (sash-form SWT/VERTICAL
+          (sash-form SWT/HORIZONTAL
                      (text (| SWT/MULTI SWT/V_SCROLL) (id! :ui/textpane)
                            (on-modify-text [props _] (println (.getText (:ui/textpane @props)))))
 
+                     ;; sudo apt install libwebkit2gtk-4.0-37 on ubuntu
                      (browser SWT/WEBKIT (id! :ui/editor)
                               :javascript-enabled true
                               :url (-> (swtdoc :swt :program 'Program) :result :eclipsedoc))
 
                      :weights [20 80])
 
-          (on-shell-closed [props event] (when-not (:closing @props)
+          (on-shell-closed [props event] #_(when-not (:closing @props)
                                            (set! (. event doit) false)))
 
           (menu SWT/POP_UP (id! :ui/tray-menu)
@@ -368,6 +369,10 @@
 
 
 (comment
-  (example-app)
+  (future (example-app))
+  
   (:editor @state)
-  (ui (.dispose @display)))
+  (ui (.dispose @display))
+
+  :eoc
+  )

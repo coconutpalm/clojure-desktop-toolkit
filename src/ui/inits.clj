@@ -1,23 +1,20 @@
-(remove-ns 'ui.inits)
-
 (ns ui.inits
   "Defines API for defining and manipulating init functions.  An init function is a function
   where the initial argument is the object to init and subsequent arguments (if any)
   define the values used for initialization."
-  (:require [ui.SWT-conversions :refer :all]
-            [clj-foundation.errors :refer [maybe-barf]]
-            [clj-foundation.patterns :refer [nothing]]
-            [clj-foundation.interop :refer [array set-property!]]
-            [clj-foundation.data :refer [->camelCase ->kebab-case setter nothing->identity]])
+  (:require [ui.SWT-conversions :refer :all] 
+            [ui.barf :refer [with-maybe-barf]]
+            [righttypes.nothing :refer [nothing nothing->identity]]
+            [righttypes.util.interop :refer [array set-property!]]
+            [righttypes.util.names :refer [->camelCase ->kebab-case setter]])
   (:import [clojure.lang IFn Keyword Reflector]
            [java.lang.reflect Modifier]
            [org.eclipse.swt.widgets Widget Composite]))
 
-
 (defn run-inits
   "Initialize the specified control using the functions in the `inits` seq."
   [props control inits]
-  (doall (map #(maybe-barf @props (apply % props control [])) inits)))
+  (doall (map #(with-maybe-barf @props (apply % props control [])) inits)))
 
 
 (defmulti ->init
@@ -85,8 +82,8 @@
   "Meta-construct the specified SWT class derived from Widget."
   [^Class clazz style args]
   `(fn [props# ^Composite parent#]
-     (let [child# (maybe-barf (deref props#) (new ~clazz parent# ~style))
-           inits# (maybe-barf (deref props#) (args->inits ~args))]
+     (let [child# (with-maybe-barf (deref props#) (new ~clazz parent# ~style))
+           inits# (with-maybe-barf (deref props#) (args->inits ~args))]
        (when (instance? Widget child#)
          (.setData child# props#))
        (swap! props# update-in [:breadcrumb] #(vec (conj % (.getSimpleName ~clazz))))
