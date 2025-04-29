@@ -5,14 +5,15 @@
   (:require [ui.internal.SWT-deps]
             [ui.internal.docs :as docs]
             [ui.internal.reflectivity :as meta]
-            [ui.inits :as i] 
+            [ui.inits :as i]
+            [clojure.pprint :refer [pprint]]
             [righttypes.nothing :refer [nothing something nothing->identity]])
   (:import [clojure.lang IFn]
            [org.eclipse.swt SWT]
            [org.eclipse.swt.graphics GC Image]
            [org.eclipse.swt.layout FillLayout]
-           [org.eclipse.swt.events TypedEvent ShellListener]
-           [org.eclipse.swt.widgets Display Shell TrayItem]))
+           [org.eclipse.swt.events TypedEvent ModifyListener MenuDetectListener SelectionAdapter ShellAdapter]
+           [org.eclipse.swt.widgets Display Shell TrayItem Listener]))
 
 ;; TODO
 ;;
@@ -64,7 +65,11 @@
 (i/define-inits meta/swt-composites)
 (i/define-inits meta/swt-widgets)
 (i/define-inits meta/swt-items)
-(meta/swt-events)
+
+#_(def swt-events (sort-by #(-> % meta :name) (meta/swt-events)))
+
+
+
 
 
 ;; =====================================================================================
@@ -139,21 +144,30 @@
   (let [[style
          inits] (i/extract-style-from-args inits)
         style   (nothing->identity SWT/NULL style)]
-    (fn [props disp]
-      (when-let [tray (.getSystemTray disp)]
+    (fn [props display]
+      (when-let [tray (.getSystemTray display)]
         (let [tray-item (TrayItem. tray style)
-              image (Image. disp 16 16)
-              highlight-image (Image. disp 16 16)]
+              image (Image. display 16 16)
+              highlight-image (Image. display 16 16)]
 
           ;; Make some default/stub images
           (doto-gc-on image
-                      (. setBackground (.getSystemColor disp SWT/COLOR_DARK_BLUE))
+                      (. setBackground (.getSystemColor display SWT/COLOR_DARK_BLUE))
                       (. fillRectangle (.getBounds image)))
+
+          (doto-gc-on highlight-image
+                      (. setBackground (.getSystemColor display SWT/COLOR_BLUE))
+                      (. fillRectangle (.getBounds image)))
+
           (doto tray-item
             (. setImage image)
             (. setHighlightImage highlight-image))
 
           (i/run-inits props tray-item (or inits []))
+
+          (.addListener display SWT/Dispose (reify Listener
+                                              (handleEvent [_this _event] (.dispose tray-item))))
+
           tray-item)))))
 
 
@@ -246,7 +260,7 @@
    (let [dt (and (something @display)
                  (.getThread @display))]
      (= t dt)))
-  ([] 
+  ([]
    (ui-thread? (Thread/currentThread))))
 
 
@@ -306,10 +320,10 @@
   "Mount the child specified by child-init-fn inside parent passing initial-props-value inside the props atom.
   Returns a map containing the :child and resulting :props"
   ([parent props child-init-fn]
-   (reset! display (Display/getDefault)) 
+   (reset! display (Display/getDefault))
    {:child (child-init-fn props (if parent parent @display))
     :props @props})
-  
+
   ([[parent props] child-init-fn]
    (child-of parent props child-init-fn)))
 
@@ -318,69 +332,91 @@
   "Run the event loop while the specified `init` shell-or-fn is not disposed."
   [& more]
   (let [props (atom {})
-        d (Display/getDefault)
+        disp (Display/getDefault)
         i (i/args->inits more)]
 
     (try
-      (reset! display d)
+      (reset! display disp)
 
-      (let [init-results (i/run-inits props d i)
+      (let [init-results (i/run-inits props disp i)
             maybe-shell  (first (filter #(instance? Shell %) init-results))
             s            (if (instance? Shell maybe-shell)
                            maybe-shell
                            (throw (ex-info "Couldn't make shell from args" {:args more})))]
 
-        (loop [[disposed busy] (process-event d)]
+        (loop [[disposed busy] (process-event disp)]
           (when (not busy)
-            (.sleep d))
+            (.sleep disp))
           (when (not disposed)
-            (recur (process-event d)))))
+            (recur (process-event disp)))))
 
       (process-pending-events!)
-      
-      (catch Throwable t 
-        t))))
+
+      (catch Throwable t
+        t)
+      (finally
+        (.dispose disp)))))
 
 
 ;; =====================================================================================
 ;; An example app to test/prove the library's features
 
-(def state (atom nil))
+(defonce state (atom nil))
 
+#_{:clj-kondo/ignore [:unresolved-symbol]}
 (defn example-app []
-  (ui-scale! 2)
+  (application ; The application hosts the display object and runs the event loop
 
-  #_{:clj-kondo/ignore [:unresolved-symbol]}
-  (application
-   (shell "Browser" (id! :ui/shell)
+   (tray-item ; Define a system tray item; we'll use the default blue icon and add some event listeners
+
+    ; Everything nested under `application` is an anonymous function with this signature or a function/macro that returns one
+    (fn [props parent] ; `props` is an atom that can be transformed at any step and allows the UI to define or access state
+      (.addMenuDetectListener parent (reify MenuDetectListener
+                                       (menuDetected [_this _] (.setVisible (:ui/tray-menu @props) true)))))
+    (fn [props parent]
+      (.addSelectionListener parent (proxy [SelectionAdapter] []
+                                      (widgetSelected [_]
+                                        (let [shell (:ui/shell @props)]
+                                          (.setVisible shell (not (.isVisible shell)))))))))
+
+   (shell SWT/SHELL_TRIM (id! :ui/shell)
+          "Browser"
           :layout (FillLayout.)
 
-          (sash-form SWT/HORIZONTAL
-                     (text (| SWT/MULTI SWT/V_SCROLL) (id! :ui/textpane)
-                           #_(on-modify-text [props _] (println (.getText (:ui/textpane @props)))))
+          (fn [props parent]
+            (.addShellListener parent (proxy [ShellAdapter] []
+                                        (shellClosed [event]
+                                          (when-not (:closing @props)
+                                            (set! (. event doit) false)
+                                            (.setVisible parent false))))))
 
-                     ;; sudo apt install libwebkit2gtk-4.0-37 on ubuntu
+          (sash-form SWT/HORIZONTAL
+                     (sash-form SWT/VERTICAL
+                                ;; sudo apt install libwebkit2gtk-4.0-37 on ubuntu if needed
+                                (browser SWT/WEBKIT (id! :ui/editor)
+                                         :javascript-enabled true
+                                         :url "https://www.duckduckgo.com")
+
+                                (text (| SWT/MULTI SWT/V_SCROLL) (id! :ui/textpane)
+                                      :text "This is the notes pane..."
+                                      (fn [props parent]
+                                        (.addModifyListener parent (reify ModifyListener
+                                                                     (modifyText [_this _]
+                                                                       (println (.getText (:ui/textpane @props))))))))
+                                :weights [80 20])
+
                      (browser SWT/WEBKIT (id! :ui/editor)
                               :javascript-enabled true
                               :url (-> (swtdoc :swt :program 'Program) :result :eclipsedoc))
-
-                     :weights [20 80])
-
-          #_(on-shell-closed [props event] #_(when-not (:closing @props)
-                                           (set! (. event doit) false)))
+                     :weights [30 70])
 
           (menu SWT/POP_UP (id! :ui/tray-menu)
                 (menu-item SWT/PUSH "&Quit"
-                           #_(on-widget-selected [props _]
-                                               (swap! props #(update-in % [:closing] (constantly true)))
-                                               (.close (:ui/shell @props))))))
-
-   #_(tray-item
-    (on-menu-detected [props _]   (.setVisible (:ui/tray-menu @props) true))
-    (on-widget-selected [props _] (let [s (:ui/shell @props)]
-                                    (if (.isVisible s)
-                                      (.setVisible s false)
-                                      (.setVisible s true)))))
+                           (fn [props parent]
+                             (.addSelectionListener parent (proxy [SelectionAdapter] []
+                                                             (widgetSelected [_]
+                                                               (swap! props #(update-in % [:closing] (constantly true)))
+                                                               (.close (:ui/shell @props)))))))))
 
    (defmain [props parent]
      ;; Bind data layer to UI or...
@@ -389,33 +425,50 @@
 
 
 (comment
-  (def app (future (example-app))) 
-  
+  (def app (future (example-app)))
+
   {:app app}
   (:editor @state)
   {:state @state}
+  (ui
+   (println
+    (.getModifyListeners
+     (:ui/textedit @state))))
   {:display @display}
 
   (ui
-   (child-of @display @state
-            (shell "Browser 2" (id! :ui/shell)
-                   (fill-layout
-                    :margin-height 10
-                    :margin-width 10) 
-                   (browser SWT/WEBKIT (id! :ui/editor)
-                            :javascript-enabled true
-                            :url "https://www.google.com"))))
-  
-  (ui
-   (child-of @display @state
-             (shell "Text editor" (id! :ui/textedit)
+   (child-of @display (atom {})
+             (shell "Browser 2" (id! :ui/shell)
                     (fill-layout
                      :margin-height 10
-                     :margin-width 10) 
-                    (text (| SWT/MULTI SWT/V_SCROLL) (id! :ui/textedit)
-                          (on-modify-text [props _] (println (.getText (:ui/textedit @props))))))))
+                     :margin-width 10)
+                    (browser SWT/WEBKIT (id! :ui/editor)
+                             :javascript-enabled true
+                             :url "https://www.google.com"))))
+
+  (defn text-editor []
+    (ui
+     (child-of @display (atom {})
+               (shell "Text editor" (id! :ui/textedit)
+                      (fill-layout
+                       :margin-height 10
+                       :margin-width 10)
+                      (text (| SWT/MULTI SWT/V_SCROLL) (id! :ui/textedit)
+                            (on-modify-text [props _] (println (.getText (:ui/textedit @props)))))))))
+
+  (pprint
+   (macroexpand '(on-modify-text [props _] (ui (println (.getText (:ui/textedit @props)))))))
+
+  (text-editor)
+
+  (def modify-text (macroexpand '(on-modify-text [props _] (ui (println (.getText (:ui/textedit @props)))))))
+  (def modify-text-init (eval modify-text))
+
+  (reset! state {})
+
+  (ui
+   (root-props))
 
   (ui (.dispose @display))
 
-  :eoc
-  )
+  :eoc)
