@@ -59,6 +59,19 @@ swt-libs-loaded?
                                                      (remove #(not= 0 (bit-and Modifier/STATIC (.getModifiers %)))))]))
                         (into {})))
 
+(defn- methods->event-names [ms]
+  (->> ms
+       (map #(.getName %))
+       (map ->kebab-case)
+       (map keyword)
+       (sort)))
+
+(def listener-methods (doall
+                    (->> swt-listeners
+                         (map (fn [[c ms]] [c (methods->event-names ms)]))
+                         (sort-by #(.getName (first %)))
+                         (into {}))))
+
 ;; TODO: Generate docstring for swt-events
 (def widget-to-listener-methods
   (apply merge
@@ -84,7 +97,7 @@ swt-libs-loaded?
 
 (def swt-event-methods (mapcat (fn [[_ events]] events) swt-listeners))
 
-(defn- event-method->possible-listeners
+(defn event-method->possible-listeners
   "Finds possible listeners (in swt-listeners) corresponding to `event-method` (in camelCase, e.g.'modifyText')"
   [^String event-method]
   (filter
@@ -123,121 +136,6 @@ swt-libs-loaded?
 
          :eoc)
 
-(defn reify-listener [listener methods event-method-to-define]
-  (let [l (symbol (.getName listener))
-        ms (map (fn [m]
-                  (let [method-name (.getName m)
-                        name-symbol (symbol method-name)]
-                    (if (= event-method-to-define method-name)
-                      (list name-symbol ['this 'e] (list 'delegate 'e))
-                      (list name-symbol ['this 'e]))))
-                methods)
-        add-listener (symbol (str ".add" (.getSimpleName listener)))]
-    `(fn [parent#] (~add-listener parent# (reify ~l ~@ms)))))
-
-
-(comment
-
-  (let [event-method "modifyText"]
-    (->> (event-method->possible-listeners event-method)
-         (map (fn [[l methods]] [l (reify-listener l methods event-method)]))
-         (into {})))
-
-  (let [event-method "widgetSelected"]
-    (->> (event-method->possible-listeners event-method)
-         (map (fn [[l methods]] [l (reify-listener l methods event-method)]))))
-
-  :eoc)
-
-(defmacro on [event-name handler-params & body]
-  (let [event-method (->camelCase event-name)
-        reify-fns (->> (event-method->possible-listeners event-method)
-                       (map (fn [[listener methods]] [listener (reify-listener listener methods event-method)]))
-                       (into {}))
-
-        delegate-fn 'delegate]
-    `(fn [props# parent#]
-       (let [parent-class# (class parent#)
-             listener-class# (->> (possible-listeners ~event-method)
-                                  (matching-listener parent-class#)
-                                  :listener-class)
-
-             effect# (fn ~handler-params ~@body)
-             ~delegate-fn (fn [e#] (effect# props# parent# e#))]
-
-         (let [reify-fns# ~reify-fns
-               reify-fn# (get reify-fns# listener-class#)]
-           (println reify-fn#)
-           (reify-fn# parent#))))))
-
-(comment
-  (macroexpand '(on :shell-closed [props event] (println event)))
-
-  (let [f (on :shell-closed [props parent event] (println event))]
-    (f (atom {}) (Shell.)))
-
-  (let [f (on :shell-closed [props parent event] (when-not (:closing @props)
-                                                   (set! (. event doit) false)
-                                                   (.setVisible parent false)))]
-    (f (atom {}) (Shell.)))
-
-
-
-  :eoc)
-
-
-(defn init-for-event
-  [^String event-method-to-define]
-  (let [possible-add-methods (possible-listeners event-method-to-define)]
-    `(fn [props# parent#]
-       (let [matching-listener# (matching-listener parent# ~possible-add-methods)
-             listener-class# (:listener-class matching-listener#)
-             listener-methods# (:listener-methods matching-listener#)]
-         (build-listener-proxy parent# ~event-method-to-define listener-class# listener-methods#)))))
-
-(comment
-  (event-method->possible-listeners "modifyText")
-  (init-for-event "modifyText")
-  (init-for-event "widgetSelected")
-  (macroexpand '(init-for-event "widgetSelected"))
-  (macroexpand '(init-for-event "modifyText"))
-  :eoc)
-
-(defn delegator [forms inits]
-  `(let ~['delegate (list 'clojure.core/fn ['props 'event] `(do ~@forms))]
-    ~@inits))
-
-(delegator [`(println "on-control-moved")] (init-for-event "widgetSelected"))
-
-(defn on-event-name-macro
-  [event-method]
-  (let [macro-name (symbol (str "on-" (-> event-method (.getName) ->kebab-case)))
-        event-method-name (.getName event-method)
-        init-fn (init-for-event event-method-name)
-        delegate (delegator 'forms init-fn)]
-    `(defmacro ~macro-name
-       [[props event] & forms]
-       ~delegate)))
-
-
-(defn swt-events []
-  (->> swt-event-methods
-       (map on-event-name-macro)
-       (map eval)))
-
-(comment
-  (first swt-event-methods)
-  (on-event-name-macro (first swt-event-methods))
-  (eval (on-event-name-macro (first swt-event-methods)))
-
-  (macroexpand (on-control-moved [props event] (println "on-control-moved")))
-
-  (macroexpand '(swt-events))
-
-  (swt-events)
-
-
-  :eoc)
 
 (defn types-in-package
   "Returns a seq of Class objects for all classes in the given package."

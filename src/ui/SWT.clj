@@ -4,15 +4,16 @@
   (:refer-clojure :exclude [list])
   (:require [ui.internal.SWT-deps]
             [ui.internal.docs :as docs]
-            [ui.internal.reflectivity :as meta :refer [on]]
+            [ui.internal.reflectivity :as meta]
             [ui.inits :as i]
             [clojure.pprint :refer [pprint]]
+            [righttypes.util.names :refer [->camelCase]]
             [righttypes.nothing :refer [nothing something nothing->identity]])
   (:import [clojure.lang IFn]
            [org.eclipse.swt SWT]
            [org.eclipse.swt.graphics GC Image]
            [org.eclipse.swt.layout FillLayout]
-           [org.eclipse.swt.events TypedEvent ModifyListener MenuDetectListener SelectionAdapter ShellAdapter]
+           [org.eclipse.swt.events TypedEvent]
            [org.eclipse.swt.widgets Display Shell TrayItem Listener]))
 
 ;; TODO
@@ -217,7 +218,7 @@
          :widgets (meta/fn-names<- meta/swt-widgets)
          :items (meta/fn-names<- meta/swt-items)
          :events (->> (.getSubTypesOf meta/swt-index TypedEvent) (seq) (sort-by #(.getSimpleName %)))
-         :listeners meta/swt-listeners
+         :listeners meta/listener-methods
          :graphics (meta/types-in-swt-package "graphics")
          :program (meta/types-in-swt-package "program")
          :layout-managers (meta/layoutdata-by-layout)}})
@@ -359,6 +360,87 @@
 
 
 ;; =====================================================================================
+;; Event handling helper
+
+(defn- reify-listener [listener methods event-method-to-define]
+  (let [l (symbol (.getName listener))
+        ms (map (fn [m]
+                  (let [method-name (.getName m)
+                        name-symbol (symbol method-name)]
+                    (if (= event-method-to-define method-name)
+                      (clojure.core/list name-symbol ['this 'e] (clojure.core/list 'delegate 'e))
+                      (clojure.core/list name-symbol ['this 'e]))))
+                methods)
+        add-listener (symbol (str ".add" (.getSimpleName listener)))]
+    `(fn [parent#] (~add-listener parent# (reify ~l ~@ms)))))
+
+
+(comment
+  (let [event-method "modifyText"]
+    (->> (meta/event-method->possible-listeners event-method)
+         (map (fn [[l methods]] [l (reify-listener l methods event-method)]))
+         (into {})))
+
+  (let [event-method "widgetSelected"]
+    (->> (meta/event-method->possible-listeners event-method)
+         (map (fn [[l methods]] [l (reify-listener l methods event-method)]))))
+
+  :eoc)
+
+
+(defmacro on
+  "Register an event handler for the specified `event-name`, `handler-parameters`, and `body`.
+
+   Synopsis:
+   (on :widget-selected [props parent event] (println \"I was selected!\"))
+
+   `event-name` is a keyword named after a listener method, but in kebab-case.
+   `handler-parameters` is the argument list naming your props, parent, and event local bindings.
+   `body` is the code to execute when the event is triggered."
+  [event-name handler-parameters & body]
+
+  (when (not= 3 (count handler-parameters))
+    (throw (ex-info "`handler-parameters` must have 3 elements designating the [props parent event] names."
+                    {:event-name event-name
+                     :handler-parameters handler-parameters
+                     :meta (meta &form)})))
+
+  (let [event-method (->camelCase event-name)
+        reify-fns (->> (meta/event-method->possible-listeners event-method)
+                       (map (fn [[listener methods]] [listener (reify-listener listener methods event-method)]))
+                       (into {}))
+
+        delegate-fn 'delegate]
+    `(fn [props# parent#]
+       (let [parent-class# (class parent#)
+             listener-class# (->> (meta/possible-listeners ~event-method)
+                                  (meta/matching-listener parent-class#)
+                                  :listener-class)
+
+             effect# (fn ~handler-parameters ~@body)
+             ~delegate-fn (fn [e#] (effect# props# parent# e#))]
+
+         (let [reify-fns# ~reify-fns
+               reify-fn# (get reify-fns# listener-class#)]
+           (reify-fn# parent#))))))
+
+(comment
+  (macroexpand '(on :shell-closed [props event] (println event)))
+
+  (let [f (on :shell-closed [props parent event] (println event))]
+    (f (atom {}) (Shell.)))
+
+  (let [f (on :shell-closed [props parent event] (when-not (:closing @props)
+                                                   (set! (. event doit) false)
+                                                   (.setVisible parent false)))]
+    (f (atom {}) (Shell.)))
+
+
+
+  :eoc)
+
+
+;; =====================================================================================
 ;; An example app to test/prove the library's features
 
 
@@ -370,7 +452,6 @@
 
    (tray-item ; Define a system tray item; we'll use the default blue icon and add some event listeners
     (on :menu-detected [props parent event] (.setVisible (:ui/tray-menu @props) true))
-
     (on :widget-selected [props parent event] (let [shell (:ui/shell @props)]
                                                 (.setVisible shell (not (.isVisible shell))))))
 
@@ -378,7 +459,7 @@
           "Browser"
           :layout (FillLayout.)
 
-          (on :shell-closed [parent props event] (when-not (:closing @props)
+          (on :shell-closed [props parent event] (when-not (:closing @props)
                                                    (set! (. event doit) false)
                                                    (.setVisible parent false)))
 
@@ -391,22 +472,20 @@
 
                                 (text (| SWT/MULTI SWT/V_SCROLL) (id! :ui/textpane)
                                       :text "This is the notes pane..."
-                                      (on :modify-text [props parent event] (println (.getText parent)))
+                                      (on :modify-text [props parent event] (println (.getText parent))))
 
-                                :weights [80 20]))
+                                :weights [80 20])
 
                      (browser SWT/WEBKIT (id! :ui/editor)
                               :javascript-enabled true
                               :url (-> (swtdoc :swt :program 'Program) :result :eclipsedoc))
+
                      :weights [30 70])
 
           (menu SWT/POP_UP (id! :ui/tray-menu)
                 (menu-item SWT/PUSH "&Quit"
-                           (fn [props parent]
-                             (.addSelectionListener parent (proxy [SelectionAdapter] []
-                                                             (widgetSelected [_]
-                                                               (swap! props #(update-in % [:closing] (constantly true)))
-                                                               (.close (:ui/shell @props)))))))))
+                           (on :widget-selected [parent props event] (swap! props #(update-in % [:closing] (constantly true)))
+                               (.close (:ui/shell @props))))))
 
    (defmain [props parent]
      ;; Bind data layer to UI or...
