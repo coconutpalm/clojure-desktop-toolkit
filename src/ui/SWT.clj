@@ -6,6 +6,7 @@
             [ui.internal.docs :as docs]
             [ui.internal.reflectivity :as meta]
             [ui.inits :as i]
+            [ui.events :as e]
             [clojure.pprint :refer [pprint]]
             [righttypes.util.names :refer [->camelCase]]
             [righttypes.nothing :refer [nothing something nothing->identity]])
@@ -66,11 +67,6 @@
 (i/define-inits meta/swt-composites)
 (i/define-inits meta/swt-widgets)
 (i/define-inits meta/swt-items)
-
-#_(def swt-events (sort-by #(-> % meta :name) (meta/swt-events)))
-
-
-
 
 
 ;; =====================================================================================
@@ -427,10 +423,10 @@
 (comment
   (macroexpand '(on :shell-closed [props event] (println event)))
 
-  (let [f (on :shell-closed [props parent event] (println event))]
+  (let [f (on e/shell-closed [props parent event] (println event))]
     (f (atom {}) (Shell.)))
 
-  (let [f (on :shell-closed [props parent event] (when-not (:closing @props)
+  (let [f (on e/shell-closed [props parent event] (when-not (:closing @props)
                                                    (set! (. event doit) false)
                                                    (.setVisible parent false)))]
     (f (atom {}) (Shell.)))
@@ -451,15 +447,15 @@
   (application ; The application hosts the display object and runs the event loop
 
    (tray-item ; Define a system tray item; we'll use the default blue icon and add some event listeners
-    (on :menu-detected [props parent event] (.setVisible (:ui/tray-menu @props) true))
-    (on :widget-selected [props parent event] (let [shell (:ui/shell @props)]
+    (on e/menu-detected [props parent event] (.setVisible (:ui/tray-menu @props) true))
+    (on e/widget-selected [props parent event] (let [shell (:ui/shell @props)]
                                                 (.setVisible shell (not (.isVisible shell))))))
 
    (shell SWT/SHELL_TRIM (id! :ui/shell)
           "Browser"
           :layout (FillLayout.)
 
-          (on :shell-closed [props parent event] (when-not (:closing @props)
+          (on e/shell-closed [props parent event] (when-not (:closing @props)
                                                    (set! (. event doit) false)
                                                    (.setVisible parent false)))
 
@@ -472,7 +468,7 @@
 
                                 (text (| SWT/MULTI SWT/V_SCROLL) (id! :ui/textpane)
                                       :text "This is the notes pane..."
-                                      (on :modify-text [props parent event] (println (.getText parent))))
+                                      (on e/modify-text [props parent event] (println (.getText parent))))
 
                                 :weights [80 20])
 
@@ -484,7 +480,7 @@
 
           (menu SWT/POP_UP (id! :ui/tray-menu)
                 (menu-item SWT/PUSH "&Quit"
-                           (on :widget-selected [parent props event] (swap! props #(update-in % [:closing] (constantly true)))
+                           (on e/widget-selected [parent props event] (swap! props #(update-in % [:closing] (constantly true)))
                                (.close (:ui/shell @props))))))
 
    (defmain [props parent]
@@ -496,18 +492,10 @@
 (comment
   (def app (future (example-app)))
 
-  (macroexpand
-   '(on :shell-closed [parent props event] (when-not (:closing @props)
-                                            (set! (. event doit) false)
-                                            (.setVisible parent false))))
 
   {:app app}
   (:editor @state)
   {:state @state}
-  (ui
-   (println
-    (.getModifyListeners
-     (:ui/textedit @state))))
   {:display @display}
 
   (ui
@@ -520,23 +508,14 @@
                              :javascript-enabled true
                              :url "https://www.google.com"))))
 
-  (defn text-editor []
-    (ui
-     (child-of @display (atom {})
-               (shell "Text editor" (id! :ui/textedit)
-                      (fill-layout
-                       :margin-height 10
-                       :margin-width 10)
-                      (text (| SWT/MULTI SWT/V_SCROLL) (id! :ui/textedit)
-                            (on-modify-text [props _] (println (.getText (:ui/textedit @props)))))))))
-
-  (pprint
-   (macroexpand '(on-modify-text [props _] (ui (println (.getText (:ui/textedit @props)))))))
-
-  (text-editor)
-
-  (def modify-text (macroexpand '(on-modify-text [props _] (ui (println (.getText (:ui/textedit @props)))))))
-  (def modify-text-init (eval modify-text))
+  (ui
+   (child-of @display (atom {})
+             (shell "Text editor" (id! :ui/textedit)
+                    (fill-layout
+                     :margin-height 10
+                     :margin-width 10)
+                    (text (| SWT/MULTI SWT/V_SCROLL) (id! :ui/textedit)
+                          (on e/modify-text [parent props event] (println (.getText (:ui/textedit @props))))))))
 
   (reset! state {})
 

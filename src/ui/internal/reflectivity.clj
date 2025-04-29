@@ -72,6 +72,10 @@ swt-libs-loaded?
                          (sort-by #(.getName (first %)))
                          (into {}))))
 
+(def swt-event-methods (methods->event-names
+                        (mapcat (fn [[_ events]] events) swt-listeners)))
+
+
 ;; TODO: Generate docstring for swt-events
 (def widget-to-listener-methods
   (apply merge
@@ -94,8 +98,6 @@ swt-libs-loaded?
   [widget-class method-name]
   (get-in widget-to-listener-methods [widget-class method-name]))
 
-
-(def swt-event-methods (mapcat (fn [[_ events]] events) swt-listeners))
 
 (defn event-method->possible-listeners
   "Finds possible listeners (in swt-listeners) corresponding to `event-method` (in camelCase, e.g.'modifyText')"
