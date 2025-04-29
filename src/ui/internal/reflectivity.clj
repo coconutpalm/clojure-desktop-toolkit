@@ -3,8 +3,8 @@
 (ns ui.internal.reflectivity
   (:require [ui.internal.SWT-deps :refer [swt-libs-loaded?]]
             [clojure.string :as str]
-            [righttypes.util.lets :refer [let-map]]
-            [righttypes.nothing :refer [translate-nothingness]]
+            [clojure.pprint :refer [pprint]]
+            [righttypes.nothing :refer [something]]
             [righttypes.conversions :refer :all]
             [righttypes.util.names :refer [->kebab-case]]
             [righttypes.util.interop :refer [array]])
@@ -91,94 +91,138 @@ swt-libs-loaded?
    swt-listeners))
 
 
-(defn- listener-bodies-delegating [delegate-method-name methods]
-  (map
-   (fn [m]
-     (let [name-symbol (symbol (.getName m))]
-       (if (= delegate-method-name (.getName m))
-         (list name-symbol ['this 'e] '(delegate props e))
-         (list name-symbol ['this 'e]))))
-   methods))
-
 (defn matching-listener
   "A given add method may be defined on more than a single listener class.  This function searches
    the `parent` class's add methods to find the correct listener class to construct from all of the
    `possible-listeners`."
   [parent possible-add-method-names]
+  (some something (map #(widget-event-info parent %) possible-add-method-names)))
 
-  (translate-nothingness
-
-   (loop [add-method-names possible-add-method-names]
-     (when-not (nil? add-method-names)
-       (let [maybe-parent-listener (widget-event-info parent (first add-method-names))]
-         (if (nil? maybe-parent-listener)
-           (recur (rest add-method-names))
-           maybe-parent-listener))))
-
-   #(throw (ex-info "No matching listener in parent for possible listeners."
-                    {:parent parent
-                     :parent-listeners (get parent widget-to-listener-methods)
-                     :possible-listener-classes possible-add-method-names}))))
-
-(defn possible-listeners-for-event
+(defn possible-add-methods-for-event
   [event-method-name]
   (->> (event-method->possible-listeners event-method-name)  ;; seq of [listener-class methods]
-       (map (fn [[listener-class methods]] 
-              #_{:clj-kondo/ignore [:unused-binding]}
-              (let [handler-info (let-map [listener-class listener-class
-                                           listener-class-name (.getName listener-class)
-                                           add-method-name (str "add" (.getSimpleName listener-class))
-                                           add-method-call (symbol (str "." add-method-name)) 
-                                           add-listener-fn (list 'fn ['parent]
-                                                                 (list add-method-call 'parent
-                                                                       `(reify ~listener-class
-                                                                          ~@(listener-bodies-delegating event-method-name methods))))])]
-                [(:listener-class handler-info) handler-info])))
-       (into {})))
+       (map (fn [[listener-class _]] (str "add" (.getSimpleName listener-class))))))
+
+
+(comment "e.g.: Look up the info we need to create a listener for modifyText"
+         (->> (possible-add-methods-for-event "modifyText")
+              (matching-listener org.eclipse.swt.widgets.Text))
+
+         (->> (possible-add-methods-for-event "menuDetected")
+              (matching-listener org.eclipse.swt.widgets.TrayItem))
+
+         (->> (possible-add-methods-for-event "shellClosed")
+              (matching-listener org.eclipse.swt.widgets.Shell))
+
+         (->> (possible-add-methods-for-event "modifyText")
+              (matching-listener org.eclipse.swt.widgets.Text))
+
+         (get widget-event-info "addShellListener")
+         :eoc)
+
+#_(defn listener-methods
+  [event-method-to-define methods]
+  (map #(let [method-name (.getName %)
+              name-symbol (symbol method-name)]
+          (if (= event-method-to-define method-name)
+            (list name-symbol ['this 'e] (list 'delegate 'props 'e))
+            (list name-symbol ['this 'e])))
+       methods))
+
+(defn method-bodies [event-method-to-define methods]
+  (map (fn [m]
+         (let [method-name (.getName m)
+               name-symbol (symbol method-name)]
+           (if (= event-method-to-define method-name)
+             (list name-symbol ['this 'e] (list 'delegate 'props 'e))
+             (list name-symbol ['this 'e]))))
+       methods))
+
+(defmacro listener
+  [listener-class method-bodies]
+  (let [listener-class-name (if (class? listener-class)
+                              (symbol (.getName listener-class))
+                              listener-class)]
+    `(reify ~listener-class-name
+       ~@method-bodies)))
+
+(defn build-listener [event-method-to-define listener-class methods]
+  (let [method-bodies (method-bodies event-method-to-define methods)]
+    (macroexpand `(listener ~listener-class ~method-bodies))))
+
+(comment
+  (let [methods (:listener-methods (get-in widget-to-listener-methods [org.eclipse.swt.widgets.Text "addSelectionListener"]))]
+    (method-bodies "widgetSelected" methods))
+
+  (let [methods (:listener-methods (get-in widget-to-listener-methods [org.eclipse.swt.widgets.Text "addSelectionListener"]))
+        method-bodies (method-bodies "widgetSelected" methods)]
+    (macroexpand `(listener org.eclipse.swt.events.SelectionListener ~method-bodies)))
+
+  (let [methods (:listener-methods (get-in widget-to-listener-methods [org.eclipse.swt.widgets.Text "addSelectionListener"]))]
+    (macroexpand (build-listener "widgetSelected" org.eclipse.swt.events.SelectionListener methods)))
+
+  :eoc)
+
+(defn build-listener-proxy
+  [parent event-method-to-define listener-class methods]
+  (let [l (build-listener event-method-to-define listener-class methods)
+        add-listener (symbol (str ".add" (.getSimpleName listener-class)))]
+    `(~add-listener ~parent ~l)))
 
 (defn init-for-event
-  [^String delegate-method-name]
-  (list 'fn ['props 'parent]
-        (list 'let ['possible-listeners (list 'ui.internal.reflectivity/possible-listeners-for-event delegate-method-name)
-                    'matching-listener (list 'ui.internal.reflectivity/matching-listener 'parent (list 'map :add-method-name 'possible-listeners))
-                    'add-event-listener (list '-> 'possible-listeners (list :listener-class 'matching-listener) :add-listener-fn)]
-          (list 'add-event-listener 'parent))))
+  [^String event-method-to-define]
+  (let [possible-add-methods (possible-add-methods-for-event event-method-to-define)]
+    `(fn [props# parent#]
+       (let [matching-listener# (matching-listener parent# ~possible-add-methods)
+             listener-class# (:listener-class matching-listener#)
+             listener-methods# (:listener-methods matching-listener#)]
+         (build-listener-proxy parent# ~event-method-to-define listener-class# listener-methods#)))))
+
+(comment
+  (event-method->possible-listeners "modifyText")
+  (init-for-event "modifyText")
+  (init-for-event "widgetSelected")
+  (macroexpand '(init-for-event "widgetSelected"))
+  (macroexpand '(init-for-event "modifyText"))
+  :eoc)
+
+(defn delegator [forms inits]
+  `(let ~['delegate (list 'clojure.core/fn ['props 'event] `(do ~@forms))]
+    ~@inits))
+
+(delegator [`(println "on-control-moved")] (init-for-event "widgetSelected"))
 
 (defn on-event-name-macro
   [event-method]
   (let [macro-name (symbol (str "on-" (-> event-method (.getName) ->kebab-case)))
         event-method-name (.getName event-method)
-        add-handler-sourcecode (init-for-event event-method-name)]
+        init-fn (init-for-event event-method-name)
+        delegate (delegator 'forms init-fn)]
     `(defmacro ~macro-name
-       [[props# event#] & forms#]
-       (let [delegate-name# (symbol "delegate")
-             add-event-handler# ~add-handler-sourcecode]
-         `(letfn [(~delegate-name# [~props# ~event#] ~@forms#)]
-            ~add-event-handler#)))))
+       [[props event] & forms]
+       ~delegate)))
 
 
-(defmacro swt-events []
-  `(let []
-     ~@(map on-event-name-macro swt-event-methods)))
+(defn swt-events []
+  (->> swt-event-methods
+       (map on-event-name-macro)
+       (map eval)))
 
 (comment
   (first swt-event-methods)
   (on-event-name-macro (first swt-event-methods))
+  (eval (on-event-name-macro (first swt-event-methods)))
 
-  (do
-    (defmacro first-event []
-      `(let []
-         ~(on-event-name-macro (first swt-event-methods))))
-    (first-event))
+  (macroexpand (on-control-moved [props event] (println "on-control-moved")))
 
-  (event-method->possible-listeners "modifyText")
-  (init-for-event "modifyText")
-  (init-for-event "widgetSelected")
-  (init-for-event "changed")
+  (macroexpand '(swt-events))
+
+  (swt-events)
+
 
   :eoc)
 
-(defn types-in-package 
+(defn types-in-package
   "Returns a seq of Class objects for all classes in the given package."
   [package]
   (->> (Reflections. (array [Object]
