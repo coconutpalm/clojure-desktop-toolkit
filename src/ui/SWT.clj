@@ -4,7 +4,7 @@
   (:refer-clojure :exclude [list])
   (:require [ui.internal.SWT-deps]
             [ui.internal.docs :as docs]
-            [ui.internal.reflectivity :as meta]
+            [ui.internal.reflectivity :as meta :refer [on]]
             [ui.inits :as i]
             [clojure.pprint :refer [pprint]]
             [righttypes.nothing :refer [nothing something nothing->identity]])
@@ -333,12 +333,12 @@
   [& more]
   (let [props (atom {})
         disp (Display/getDefault)
-        i (i/args->inits more)]
+        inits (i/args->inits more)]
 
     (try
       (reset! display disp)
 
-      (let [init-results (i/run-inits props disp i)
+      (let [init-results (i/run-inits props disp inits)
             maybe-shell  (first (filter #(instance? Shell %) init-results))
             s            (if (instance? Shell maybe-shell)
                            maybe-shell
@@ -361,6 +361,7 @@
 ;; =====================================================================================
 ;; An example app to test/prove the library's features
 
+
 (defonce state (atom nil))
 
 #_{:clj-kondo/ignore [:unresolved-symbol]}
@@ -368,27 +369,18 @@
   (application ; The application hosts the display object and runs the event loop
 
    (tray-item ; Define a system tray item; we'll use the default blue icon and add some event listeners
+    (on :menu-detected [props parent event] (.setVisible (:ui/tray-menu @props) true))
 
-    ; Everything nested under `application` is an anonymous function with this signature or a function/macro that returns one
-    (fn [props parent] ; `props` is an atom that can be transformed at any step and allows the UI to define or access state
-      (.addMenuDetectListener parent (reify MenuDetectListener
-                                       (menuDetected [_this _] (.setVisible (:ui/tray-menu @props) true)))))
-    (fn [props parent]
-      (.addSelectionListener parent (proxy [SelectionAdapter] []
-                                      (widgetSelected [_]
-                                        (let [shell (:ui/shell @props)]
-                                          (.setVisible shell (not (.isVisible shell)))))))))
+    (on :widget-selected [props parent event] (let [shell (:ui/shell @props)]
+                                                (.setVisible shell (not (.isVisible shell))))))
 
    (shell SWT/SHELL_TRIM (id! :ui/shell)
           "Browser"
           :layout (FillLayout.)
 
-          (fn [props parent]
-            (.addShellListener parent (proxy [ShellAdapter] []
-                                        (shellClosed [event]
-                                          (when-not (:closing @props)
-                                            (set! (. event doit) false)
-                                            (.setVisible parent false))))))
+          (on :shell-closed [parent props event] (when-not (:closing @props)
+                                                   (set! (. event doit) false)
+                                                   (.setVisible parent false)))
 
           (sash-form SWT/HORIZONTAL
                      (sash-form SWT/VERTICAL
@@ -399,11 +391,9 @@
 
                                 (text (| SWT/MULTI SWT/V_SCROLL) (id! :ui/textpane)
                                       :text "This is the notes pane..."
-                                      (fn [props parent]
-                                        (.addModifyListener parent (reify ModifyListener
-                                                                     (modifyText [_this _]
-                                                                       (println (.getText (:ui/textpane @props))))))))
-                                :weights [80 20])
+                                      (on :modify-text [props parent event] (println (.getText parent)))
+
+                                :weights [80 20]))
 
                      (browser SWT/WEBKIT (id! :ui/editor)
                               :javascript-enabled true
@@ -426,6 +416,11 @@
 
 (comment
   (def app (future (example-app)))
+
+  (macroexpand
+   '(on :shell-closed [parent props event] (when-not (:closing @props)
+                                            (set! (. event doit) false)
+                                            (.setVisible parent false))))
 
   {:app app}
   (:editor @state)

@@ -5,8 +5,9 @@
             [clojure.string :as str]
             [clojure.pprint :refer [pprint]]
             [righttypes.nothing :refer [something]]
+            [righttypes.util.lets :refer [let-map]]
             [righttypes.conversions :refer :all]
-            [righttypes.util.names :refer [->kebab-case]]
+            [righttypes.util.names :refer [->kebab-case ->camelCase]]
             [righttypes.util.interop :refer [array]])
   (:import [java.lang.reflect Modifier Field]
            [clojure.lang Symbol]
@@ -24,7 +25,8 @@ swt-libs-loaded?
 
 (def swt-composites (->> (.getSubTypesOf swt-index Composite)
                          (seq)
-                         (remove #{Shell GLCanvas})
+                         #_(remove #{Shell GLCanvas})
+                         (remove #{GLCanvas})
                          (remove #(.endsWith (.getName %) "OleClientSite"))
                          (remove #(.endsWith (.getName %) "OleControlSite"))
                          (remove #(.endsWith (.getName %) "WebSite"))
@@ -98,80 +100,95 @@ swt-libs-loaded?
   [parent possible-add-method-names]
   (some something (map #(widget-event-info parent %) possible-add-method-names)))
 
-(defn possible-add-methods-for-event
+(defn possible-listeners
   [event-method-name]
   (->> (event-method->possible-listeners event-method-name)  ;; seq of [listener-class methods]
        (map (fn [[listener-class _]] (str "add" (.getSimpleName listener-class))))))
 
 
 (comment "e.g.: Look up the info we need to create a listener for modifyText"
-         (->> (possible-add-methods-for-event "modifyText")
+         (event-method->possible-listeners "modifyText")
+
+         (->> (possible-listeners "modifyText")
               (matching-listener org.eclipse.swt.widgets.Text))
 
-         (->> (possible-add-methods-for-event "menuDetected")
+         (->> (possible-listeners "menuDetected")
               (matching-listener org.eclipse.swt.widgets.TrayItem))
 
-         (->> (possible-add-methods-for-event "shellClosed")
+         (->> (possible-listeners "shellClosed")
               (matching-listener org.eclipse.swt.widgets.Shell))
 
-         (->> (possible-add-methods-for-event "modifyText")
-              (matching-listener org.eclipse.swt.widgets.Text))
+         (->> (possible-listeners "widgetSelected")
+              (matching-listener org.eclipse.swt.widgets.TrayItem))
 
-         (get widget-event-info "addShellListener")
          :eoc)
 
-#_(defn listener-methods
-  [event-method-to-define methods]
-  (map #(let [method-name (.getName %)
-              name-symbol (symbol method-name)]
-          (if (= event-method-to-define method-name)
-            (list name-symbol ['this 'e] (list 'delegate 'props 'e))
-            (list name-symbol ['this 'e])))
-       methods))
+(defn reify-listener [listener methods event-method-to-define]
+  (let [l (symbol (.getName listener))
+        ms (map (fn [m]
+                  (let [method-name (.getName m)
+                        name-symbol (symbol method-name)]
+                    (if (= event-method-to-define method-name)
+                      (list name-symbol ['this 'e] (list 'delegate 'e))
+                      (list name-symbol ['this 'e]))))
+                methods)
+        add-listener (symbol (str ".add" (.getSimpleName listener)))]
+    `(fn [parent#] (~add-listener parent# (reify ~l ~@ms)))))
 
-(defn method-bodies [event-method-to-define methods]
-  (map (fn [m]
-         (let [method-name (.getName m)
-               name-symbol (symbol method-name)]
-           (if (= event-method-to-define method-name)
-             (list name-symbol ['this 'e] (list 'delegate 'props 'e))
-             (list name-symbol ['this 'e]))))
-       methods))
-
-(defmacro listener
-  [listener-class method-bodies]
-  (let [listener-class-name (if (class? listener-class)
-                              (symbol (.getName listener-class))
-                              listener-class)]
-    `(reify ~listener-class-name
-       ~@method-bodies)))
-
-(defn build-listener [event-method-to-define listener-class methods]
-  (let [method-bodies (method-bodies event-method-to-define methods)]
-    (macroexpand `(listener ~listener-class ~method-bodies))))
 
 (comment
-  (let [methods (:listener-methods (get-in widget-to-listener-methods [org.eclipse.swt.widgets.Text "addSelectionListener"]))]
-    (method-bodies "widgetSelected" methods))
 
-  (let [methods (:listener-methods (get-in widget-to-listener-methods [org.eclipse.swt.widgets.Text "addSelectionListener"]))
-        method-bodies (method-bodies "widgetSelected" methods)]
-    (macroexpand `(listener org.eclipse.swt.events.SelectionListener ~method-bodies)))
+  (let [event-method "modifyText"]
+    (->> (event-method->possible-listeners event-method)
+         (map (fn [[l methods]] [l (reify-listener l methods event-method)]))
+         (into {})))
 
-  (let [methods (:listener-methods (get-in widget-to-listener-methods [org.eclipse.swt.widgets.Text "addSelectionListener"]))]
-    (macroexpand (build-listener "widgetSelected" org.eclipse.swt.events.SelectionListener methods)))
+  (let [event-method "widgetSelected"]
+    (->> (event-method->possible-listeners event-method)
+         (map (fn [[l methods]] [l (reify-listener l methods event-method)]))))
 
   :eoc)
 
-(defn build-listener-proxy
-  [parent event-method-to-define listener-class methods]
-  (let [l (build-listener event-method-to-define listener-class methods)
-        add-listener (symbol (str ".add" (.getSimpleName listener-class)))]
-    `(~add-listener ~parent ~l)))
+(defmacro on [event-name handler-params & body]
+  (let [event-method (->camelCase event-name)
+        reify-fns (->> (event-method->possible-listeners event-method)
+                       (map (fn [[listener methods]] [listener (reify-listener listener methods event-method)]))
+                       (into {}))
+
+        delegate-fn 'delegate]
+    `(fn [props# parent#]
+       (let [parent-class# (class parent#)
+             listener-class# (->> (possible-listeners ~event-method)
+                                  (matching-listener parent-class#)
+                                  :listener-class)
+
+             effect# (fn ~handler-params ~@body)
+             ~delegate-fn (fn [e#] (effect# props# parent# e#))]
+
+         (let [reify-fns# ~reify-fns
+               reify-fn# (get reify-fns# listener-class#)]
+           (println reify-fn#)
+           (reify-fn# parent#))))))
+
+(comment
+  (macroexpand '(on :shell-closed [props event] (println event)))
+
+  (let [f (on :shell-closed [props parent event] (println event))]
+    (f (atom {}) (Shell.)))
+
+  (let [f (on :shell-closed [props parent event] (when-not (:closing @props)
+                                                   (set! (. event doit) false)
+                                                   (.setVisible parent false)))]
+    (f (atom {}) (Shell.)))
+
+
+
+  :eoc)
+
 
 (defn init-for-event
   [^String event-method-to-define]
-  (let [possible-add-methods (possible-add-methods-for-event event-method-to-define)]
+  (let [possible-add-methods (possible-listeners event-method-to-define)]
     `(fn [props# parent#]
        (let [matching-listener# (matching-listener parent# ~possible-add-methods)
              listener-class# (:listener-class matching-listener#)
