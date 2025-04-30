@@ -70,7 +70,6 @@ An application that minimizes itself to the system tray and hosts several panes 
 
    (defmain [props parent]
      ;; Bind data layer to UI or...
-     (reset! state props)
      (println (str (:ui/editor @props) " " parent)))))
 
 
