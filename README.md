@@ -25,7 +25,7 @@ A significant barrier to using Eclipse SWT for non-Eclipse applications has been
 An application that minimizes itself to the system tray and hosts several panes of information:
 
 ```clojure
-defn example-app []
+(defn example-app []
   (application ; The application hosts the display object and runs the event loop
 
    (tray-item ; Define a system tray item so we can minimize to the tray
