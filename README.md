@@ -176,7 +176,7 @@ Add this to your pom.xml: (Gradle, Ivy, and other build systems: The information
 <repositories>
 	<repository>
 		<id>eclipse-swt</id>
-		<url>https://coconutpalm.github.io/clojure-desktop-toolkit</url>
+		<url>https://coconutpalm.github.io/clojure-desktop-toolkit/maven</url>
 	</repository>
 </repositories>
 ```
