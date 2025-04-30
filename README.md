@@ -18,7 +18,7 @@ The Clojure Desktop Toolkit wraps Eclipse's SWT library, a cross-platform graphi
 
 Clojure Desktop Toolkit also provides an idiomatic functional approach to describing graphical interfaces, greatly reducing the amount of boilerplate one must write to create a rich graphical experience.
 
-A significant barrier to using Eclipse SWT for non-Eclipse applications has been that SWT isn't published on Maven Central.  Clojure Desktop Toolkit solves this probablem by scraping SWT's jars from Eclipse.org and bundling them in our own custom Maven repository.  Shell scripts make it easy to stay up to date.  (This capability originally came from https://github.com/maven-eclipse/maven-eclipse.github.io)
+A significant barrier to using Eclipse SWT for non-Eclipse applications has been that SWT isn't published on Maven Central.  Clojure Desktop Toolkit solves this problem by scraping SWT's jars from Eclipse.org and bundling them in our own custom Maven repository.  Shell scripts make it easy to stay up to date.  (This capability originally came from https://github.com/maven-eclipse/maven-eclipse.github.io)
 
 ### Example
 
