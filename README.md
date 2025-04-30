@@ -2,6 +2,8 @@
 
 # Clojure Desktop Toolkit
 
+> *Putting joy back into desktop application development!*
+
 *Version 0.0.2; initial public release; includes full SWT API support*
 
 It used to be that web applications were simpler and easier to build than desktop graphical applications.  With the expectations of modern CSS and Javascript, this is no longer the case.  Modern web applications are beautiful, but they are expensive.
