@@ -2,7 +2,7 @@
 
 # Clojure Desktop Toolkit
 
-> *Putting joy back into desktop application development!*
+> *Putting joy back into desktop application development!* 😁
 
 *Version 0.0.2; initial public release; includes full SWT API support*
 
