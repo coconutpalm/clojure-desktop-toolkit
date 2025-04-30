@@ -446,42 +446,46 @@
 (defn example-app []
   (application ; The application hosts the display object and runs the event loop
 
-   (tray-item ; Define a system tray item; we'll use the default blue icon and add some event listeners
+   (tray-item ; Define a system tray item so we can minimize to the tray
     (on e/menu-detected [props parent event] (.setVisible (:ui/tray-menu @props) true))
     (on e/widget-selected [props parent event] (let [shell (:ui/shell @props)]
-                                                (.setVisible shell (not (.isVisible shell))))))
+                                                 (.setVisible shell (not (.isVisible shell))))))
 
-   (shell SWT/SHELL_TRIM (id! :ui/shell)
-          "Browser"
-          :layout (FillLayout.)
+   (shell
+    SWT/SHELL_TRIM (id! :ui/shell)
+    "Browser"
+    :layout (FillLayout.)
 
-          (on e/shell-closed [props parent event] (when-not (:closing @props)
-                                                   (set! (. event doit) false)
-                                                   (.setVisible parent false)))
+    (on e/shell-closed [props parent event] (when-not (:closing @props)
+                                              (set! (. event doit) false)
+                                              (.setVisible parent false)))
 
-          (sash-form SWT/HORIZONTAL
-                     (sash-form SWT/VERTICAL
-                                ;; sudo apt install libwebkit2gtk-4.0-37 on ubuntu if needed
-                                (browser SWT/WEBKIT (id! :ui/editor)
-                                         :javascript-enabled true
-                                         :url "https://www.duckduckgo.com")
+    (sash-form
+     SWT/HORIZONTAL
 
-                                (text (| SWT/MULTI SWT/V_SCROLL) (id! :ui/textpane)
-                                      :text "This is the notes pane..."
-                                      (on e/modify-text [props parent event] (println (.getText parent))))
+     (sash-form
+      SWT/VERTICAL
+      ;; sudo apt install libwebkit2gtk-4.0-37 on ubuntu if needed
+      (browser SWT/WEBKIT (id! :ui/editor)
+               :javascript-enabled true
+               :url "https://www.duckduckgo.com")
 
-                                :weights [80 20])
+      (text (| SWT/MULTI SWT/V_SCROLL) (id! :ui/textpane)
+            :text "This is the notes pane..."
+            (on e/modify-text [props parent event] (println (.getText parent))))
 
-                     (browser SWT/WEBKIT (id! :ui/editor)
-                              :javascript-enabled true
-                              :url (-> (swtdoc :swt :program 'Program) :result :eclipsedoc))
+      :weights [80 20])
 
-                     :weights [30 70])
+     (browser SWT/WEBKIT (id! :ui/editor)
+              :javascript-enabled true
+              :url (-> (swtdoc :swt :program 'Program) :result :eclipsedoc))
 
-          (menu SWT/POP_UP (id! :ui/tray-menu)
-                (menu-item SWT/PUSH "&Quit"
-                           (on e/widget-selected [parent props event] (swap! props #(update-in % [:closing] (constantly true)))
-                               (.close (:ui/shell @props))))))
+     :weights [30 70])
+
+    (menu SWT/POP_UP (id! :ui/tray-menu)
+          (menu-item SWT/PUSH "&Quit"
+                     (on e/widget-selected [parent props event] (swap! props #(update-in % [:closing] (constantly true)))
+                         (.close (:ui/shell @props))))))
 
    (defmain [props parent]
      ;; Bind data layer to UI or...

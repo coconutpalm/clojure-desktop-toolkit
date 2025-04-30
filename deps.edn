@@ -1,9 +1,10 @@
 {:paths ["src" "dev"]
 
- :mvn/repos {"clojure-swt.github.io" {:url "https://clojure-swt.github.io/maven"}}
+ :mvn/repos {"clojure-desktop-toolkit"
+            {:url "https://coconutpalm.github.io/clojure-desktop-toolkit/maven"}}
 
  :deps {org.clojure/clojure {:mvn/version "1.12.0"}
         io.github.coconutpalm/righttypes {:git/sha "7a0243fa1e7e18de980e7f9267106582d559a301"}
         virgil/virgil {:mvn/version "0.4.0"}
-        org.reflections/reflections {:mvn/version "0.10.2"} 
+        org.reflections/reflections {:mvn/version "0.10.2"}
         com.hyperfiddle/rcf {:mvn/version "20220926-202227"}}}
