@@ -56,7 +56,7 @@ theShell.setText("Hello application");
 theShell.setLayout(new FillLayout());
 ```
 
-7. `(label` creates a SWT `Label` widget as a child of the shell using `SWT/NONE` style bits.  Since `"Hello, world"` isn't assigned to a particular property, it is set into the label's `text` property like `"Hello application"` was above.  SWT's naming consistency makes conventions like this within Clojure Desktop Toolkit possible, pleaseant, and effective.
+7. `(label` creates a SWT `Label` widget as a child of the shell using `SWT/NONE` style bits.  Since `"Hello, world"` isn't assigned to a particular property, it is set into the label's `text` property like `"Hello application"` was above.  SWT's naming consistency makes Clojure Desktop Toolkit conventions like this possible, pleaseant, and effective.
 
 ## Run the application
 
