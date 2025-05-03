@@ -15,7 +15,7 @@
            [org.eclipse.swt.graphics GC Image]
            [org.eclipse.swt.layout FillLayout]
            [org.eclipse.swt.events TypedEvent]
-           [org.eclipse.swt.widgets Display Shell TrayItem Listener]))
+           [org.eclipse.swt.widgets Display Shell TrayItem Listener Label]))
 
 ;; TODO
 ;;
@@ -492,9 +492,73 @@
      (reset! state props)
      (println (str (:ui/editor @props) " " parent)))))
 
+(defn hello []
+  (application
+   (shell SWT/SHELL_TRIM
+          "Hello application"
+
+          :layout (FillLayout.)
+
+          (label "Hello, world"))))
+
+(defn hello-desugared []
+  (application
+   (fn [props parent]
+     (let [child (Shell. parent SWT/SHELL_TRIM)]
+       (doall
+        (map #(apply % props child [])
+             [(fn [_props parent] (.setText parent "Hello application"))
+              (fn [_props parent] (.setLayout parent (FillLayout.)))
+              (fn [props parent]
+                (let [child (Label. parent SWT/NONE)]
+                  (doall
+                   (map #(apply % props child [])
+                        [(fn [_props parent] (.setText parent "Hello, world"))]))
+                  child))]))
+       (.open child)
+       child))))
+
+(defmacro widget
+  "Add a child widget to specified parent and run the functions in its arglist"
+  [clazz style-bits & initfns]
+  `(fn [props# parent#]
+     (let [child# (new ~clazz parent# ~style-bits)]
+       (doall (map (fn [initfn#] (initfn# props# child#)) [~@initfns]))
+       child#)))
+
+(defn hello-desugared2 []
+  (application
+   (widget Shell SWT/SHELL_TRIM
+           (fn [_props parent] (.setText parent "Hello application"))
+           (fn [_props parent] (.setLayout parent (FillLayout.)))
+           (widget Label SWT/NONE
+                   (fn [_props parent] (.setText parent "Hello, world")))
+           (fn [_props parent] (.open parent)))))
+
+
+(defn hd2 []
+  (ui
+   (child-of
+    @display (atom {})
+    (fn [props parent]
+      (let [child (Shell. parent SWT/SHELL_TRIM)]
+        (doall
+         (map #(apply % props child [])
+              [(fn [_props parent] (.setText parent "Hello application"))
+               (fn [_props parent] (.setLayout parent (FillLayout.)))
+               (fn [props parent]
+                 (let [child (Label. parent SWT/NONE)]
+                   (doall
+                    (map #(apply % props child [])
+                         [(fn [_props parent] (.setText parent "Hello, world"))]))))])))))))
+
 
 (comment
   (def app (future (example-app)))
+
+  (def app (future (hello)))
+
+  (def app (future (hello-desugared2)))
 
 
   {:app app}
