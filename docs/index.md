@@ -14,4 +14,18 @@ Let's examine the API and usage more closely.
 
 * [Hello, world](hello-world.md)
 * [Hello, world without syntactic sugar](hello-world-no-sugar.md)
-* [Extend argument list syntax sugar](extend-arglist-syntax.md)
+* Extend argument list syntax sugar
+* Event handling
+
+SWT Basics
+
+* The SWT widget hierarchy (swt-basics, composite, canvas)
+* Typical widget methods (swt-widget-api)
+* SWT layout managers
+* Graphics and drawing
+* SWT Items
+
+Reference information
+
+* The `swtdoc` API and online references
+* The SWT "snippets" collection
