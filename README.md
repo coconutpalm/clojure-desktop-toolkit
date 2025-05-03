@@ -22,9 +22,9 @@ Clojure Desktop Toolkit also provides an idiomatic functional approach to descri
 
 A significant barrier to using Eclipse SWT for non-Eclipse applications has been that SWT isn't published on Maven Central.  Clojure Desktop Toolkit solves this problem by scraping SWT's jars from Eclipse.org and bundling them in our own custom Maven repository.  Shell scripts make it easy to stay up to date.  (This capability originally came from https://github.com/maven-eclipse/maven-eclipse.github.io)
 
-If you want to jump straight to [the tutorial](docs/index.md), you can.
-
 ### Example
+
+If you want to jump straight to [the tutorial](docs/index.md), you can.
 
 An application that minimizes itself to the system tray and hosts several panes of information:
 
