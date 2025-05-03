@@ -12,7 +12,7 @@ This is what the Clojure Desktop Toolkit does; it also makes SWT and Clojure Des
 
 Getting started
 
-* Install Clojure, Visual Studio Code, and Calva
+* Install Java, Clojure, Visual Studio Code, and Calva
 * Create a new Clojure Desktop Toolkit application
 
 Let's examine the API and usage more closely.
@@ -35,3 +35,4 @@ Reference information
 
 * The `swtdoc` API and online references
 * The SWT "snippets" collection
+* [Design principles](principles.md)
