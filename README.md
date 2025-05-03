@@ -108,7 +108,7 @@ Currently we support `deps.edn` via the Github transport.  Other artifact reposi
 
 ## Documentation
 
-See the [tutorial](docs/index.md) and API documentation for more.  *(Currently: WIP; in the meantime, see the tests and the examples in the `comment` forms.)*
+See the [tutorial and reference](docs/index.md).  *(Currently: WIP; see also the tests and the examples in the `comment` forms.)*
 
 ## Project status
 
