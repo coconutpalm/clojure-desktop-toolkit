@@ -136,6 +136,7 @@ In the code above, the `i` alias points to a namespace with utilities for buildi
 ## Conclusions
 
 * The Clojure Desktop Toolkit engine constructs a user interface by recursively running "init" functions with the signature `(fn [props parent] ,,,,)`.
+* `props` is an atom containing a map.  It can store user interface widget instances or any other state needed to implement a desired UX.
 * One can extend Clojure Desktop Toolkit by creating factory functions or macros that return a function implementing the "init" function signature.
 * Argument syntactic sugar is supported by translating each argument list into a seq of "init" functions.  We will explore this mechanism more in the next episode.
 
