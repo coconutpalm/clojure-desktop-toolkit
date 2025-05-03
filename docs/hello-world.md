@@ -39,6 +39,7 @@ Let's examine each expression (numbered above) and see what we can learn:
    * `SWT/SHELL_TRIM` is the `style-bits` we're passing here.  This parameter is an integer bitmap that selects features to enable for the thing being constructed.
       * `SWT/SHELL_TRIM` is a convenience value for the bits normally used to designate an application top-level shell.
       * In the general case, style bits can be bitwise-or'd together to enable multiple features.
+      * Refer to the Javadoc for each SWT widget's constructor to learn what style bits each constructor supports and their meaning.
       * Unlike Java, in Clojure Desktop Toolkit, if this prameter is omitted, the tookit automatically passes `SWT/NONE`.
 
 4. `"Hello application"` If a string appears by itself (e.g.: is not being explicitly set into a property), it is set into its parent's `text` JavaBeans property.  e.g.: This bare string is equivalent to roughly the following Java code:
