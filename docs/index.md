@@ -8,7 +8,7 @@ The Eclipse SWT (Standard Widget Toolkit) library, on which the Clojure Desktop 
 
 This is what the Clojure Desktop Toolkit does; it also makes SWT and Clojure Desktop Toolkit easier to understand by reducing the surface area of things one must remember in order to work effectively.  Everything boils down to a small set of rules and naming conventions.
 
-## Next steps
+## Contents
 
 Getting started
 
