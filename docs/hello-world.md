@@ -6,7 +6,7 @@ In Clojure Desktop Toolkit, this application illustrates how to:
 
 * Create a hierarchy of user interface widgets.
 * Specify SWT style bits for a widget's constructor.
-* Set JavaBean properties on widgets, along with syntactic sugar that Clojure Desktop Toolkiet offers.
+* Set JavaBean properties on widgets using the syntactic sugar that Clojure Desktop Toolkiet offers.
 
 Here is the code:
 
