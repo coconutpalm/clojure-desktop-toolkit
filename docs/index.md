@@ -20,6 +20,7 @@ Let's examine the API and usage more closely.
 * [Hello, world](hello-world.md)
 * [Hello, world without syntactic sugar](hello-world-no-sugar.md)
 * Extend argument list syntax sugar
+* Props and state
 * Event handling
 
 SWT Basics
