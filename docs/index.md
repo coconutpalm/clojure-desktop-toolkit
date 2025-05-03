@@ -36,3 +36,5 @@ Reference information
 * The `swtdoc` API and online references
 * The SWT "snippets" collection
 * [Design principles](principles.md)
+
+[Back to README.md](../README.md)
