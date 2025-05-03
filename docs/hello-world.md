@@ -87,3 +87,5 @@ Although we haven't fully seen this in action, Clojure names are identical to th
 At this point, you might be appreciating the clarity and succinctness of code written using Clojure Desktop Toolkit.  At the same time, you may feel like all of the syntactic sugar is obscuring what is happening under the hood.
 
 In our next episode, we'll pull back the curtain and rewrite "Hello, world" without using any of Clojure Desktop Toolkit's syntax sugar.  You'll see exactly what the library is doing and learn how you can extend it yourself--the same way it was written itself.
+
+[Return to documentation index](index.md)

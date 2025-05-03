@@ -132,3 +132,5 @@ In the code above, the `i` alias points to a namespace with utilities for buildi
 > ***NOTE:** In Clojure Desktop Toolkit, `shell` is a special case, because the `Shell` requires special style bit processing, and because the `Shell` itself has to be opened after construction.*
 >
 > *In contrast, the other widget classes' initialization functions can be (and are) generated mechanically.  These expand to init functions that are nearly identical to what we wrote above by hand.*
+
+[Return to documentation index](index.md)
