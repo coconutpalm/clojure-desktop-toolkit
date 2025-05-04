@@ -1,4 +1,4 @@
-# A "Hello, world" application
+# ![Logo](images/icon32x32.png) A "Hello, world" application
 
 It is traditional to introduce programming using a new programming language or user interface toolkit using an application that simply displays the message, "Hello, world".
 

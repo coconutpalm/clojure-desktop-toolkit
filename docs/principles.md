@@ -1,4 +1,4 @@
-# Design principles
+# ![Logo](images/icon32x32.png) Design principles
 
 This is part to-do list and part record of design choices.  It is intended both as readable documentation and as an outline of points for use in possible future presentations on this UI library.
 

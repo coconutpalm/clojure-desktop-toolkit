@@ -1,4 +1,4 @@
-# Clojure Desktop Toolkit Tutorial
+# ![Logo](images/icon32x32.png) Clojure Desktop Toolkit Tutorial
 
 Start here. 😁
 
@@ -19,9 +19,9 @@ Let's examine the API and usage more closely.
 
 * [Hello, world](hello-world.md)
 * [Hello, world without syntactic sugar](hello-world-no-sugar.md)
-* Extend argument list syntax sugar
-* Props and state
-* Event handling
+* [Idiomatic SWT property assignment](idiomatic-property-assignment.md)
+* [Props and state management](props-and-state.md)
+* [Event handling]
 
 SWT Basics
 
@@ -34,7 +34,7 @@ SWT Basics
 Reference information
 
 * The `swtdoc` API and online references
-* The SWT "snippets" collection
+* [The SWT "snippets" collection](https://eclipse.dev/eclipse/swt/snippets/index.html)
 * [Design principles](principles.md)
 
 [Back to README.md](../README.md)

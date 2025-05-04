@@ -1,4 +1,4 @@
-# Hello, world - How it Really Works
+# ![Logo](images/icon32x32.png) Hello, world - How it Really Works
 
 Last time, we examined an idiomatic "Hello, world" application written using Clojure Desktop Toolkit.
 
@@ -84,7 +84,7 @@ Let's use a macro to illustrate the general idea:
            (fn [_props parent] (.open parent)))))
 ```
 
-In this revised "desugared" Hello program, we use a macro to rewrite the `hello-desugared-with-widget-helper` function body to exactly what `hello-desugared` was.
+In this revised "desugared" Hello program, we use a macro to rewrite the `hello-desugared-with-widget-helper` function body to almost exactly what `hello-desugared` was.
 
 Now we know enough to understand how the syntax sugar works.
 
@@ -137,7 +137,12 @@ In the code above, the `i` alias points to a namespace with utilities for buildi
 
 * The Clojure Desktop Toolkit engine constructs a user interface by recursively running "init" functions with the signature `(fn [props parent] ,,,,)`.
 * `props` is an atom containing a map.  It can store user interface widget instances or any other state needed to implement a desired UX.
-* One can extend Clojure Desktop Toolkit by creating factory functions or macros that return a function implementing the "init" function signature.
-* Argument syntactic sugar is supported by translating each argument list into a seq of "init" functions.  We will explore this mechanism more in the next episode.
+* You can extend Clojure Desktop Toolkit simply by creating factory functions or macros that return a function implementing the "init" function signature.  The `widget` macro above is a simple example.  `shell` is a built-in example.  That's all there is to extending Clojure Desktop Toolkit's basic vocabulary and behavior!
+
+There's one more bit of "magic" happening when you assign to widget properties:
+
+* If you don't supply the precise type that SWT is expecting, Clojure Desktop Toolkit will attempt to automatically coerce the value you supplied to the value SWT expects.
+
+We'll talk about this in the next chapter.
 
 [Return to documentation index](index.md)

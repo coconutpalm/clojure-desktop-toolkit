@@ -19,11 +19,6 @@
 
 ;; TODO
 ;;
-;; Fix event handler bug
-;;  (on-widget-selected [props event] & forms)
-;; Reflectively (.addSelectionListener (proxy [SelectionAdapter] [] (widgetSelected [event] ...
-;;  - Needs to disambiguate when the same event method name appears in multiple listener types
-;;
 ;; Make id! hierarchical.  An id! on a Text inside a Composite with an id winds
 ;;  up as {:composite-id {:text-id the-text}}
 ;;
