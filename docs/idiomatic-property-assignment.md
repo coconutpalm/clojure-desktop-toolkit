@@ -10,7 +10,7 @@ In the [prior chapter](hello-world-no-sugar.md), we explained how to extend Cloj
 
 Adding hierarchical or other complex behavior simply involves writing factory functions or macros that return functions having this signature.
 
-Property assignment is the last area where utilizing Java interop alone often doesn't result in nicely-readable idiomatic Clojure or Lisp code.
+Property assignment is another area where utilizing Java interop alone often doesn't result in satisfying, idiomatic Clojure or Lisp code, but Clojure Desktop Toolkit addresses this in a way that is both general and extensible.
 
 ## Property assignment and type mismatch
 
