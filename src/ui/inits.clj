@@ -40,19 +40,33 @@
 
 (defmethod ->init
   Keyword [arg1 arg2]
-  (letfn [(set-property [props o]
-            (let [field-name  (->camelCase arg1)
-                  arg2        (get-prop arg2 props)
-                  field       (->> (.getClass o)
-                                 (.getDeclaredFields)
-                                 (filter (fn [field]
-                                           (and (= field-name (.getName field))
-                                                (not= 0 (bit-and (.getModifiers field) Modifier/PUBLIC))
-                                                (Reflector/paramArgTypeMatch (.getType field) (class arg2)))))
-                                 (first))]
-              (if field
-                (Reflector/setInstanceField o field-name arg2)
-                (set-property! o (name arg1) arg2))))]
+  (letfn [(unable-to-set-property
+           [prop receiver breadcrumb inner-exception]
+           (throw (ex-info (str "Unable to set property `" prop "` on " receiver)
+                           {:breadcrumb breadcrumb
+                            :property arg1
+                            :object receiver} inner-exception)))
+
+          (set-property
+           [props o]
+           (try
+             (let [field-name  (->camelCase arg1)
+                   arg2        (get-prop arg2 props)
+                   field       (->> (.getClass o)
+                                    (.getDeclaredFields)
+                                    (filter (fn [field]
+                                              (and (= field-name (.getName field))
+                                                   (not= 0 (bit-and (.getModifiers field) Modifier/PUBLIC))
+                                                   (Reflector/paramArgTypeMatch (.getType field) (class arg2)))))
+                                    (first))]
+               (try
+                 (if field
+                   (Reflector/setInstanceField o field-name arg2)
+                   (set-property! o (name arg1) arg2))
+                 (catch Throwable t
+                   (unable-to-set-property field-name o (:breadcrumb props) t))))
+             (catch Throwable t
+               (unable-to-set-property arg1 o (:breadcrumb props) t))))]
     [set-property 2]))
 
 (defn args->inits
