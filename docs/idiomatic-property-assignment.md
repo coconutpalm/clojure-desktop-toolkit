@@ -12,7 +12,7 @@ Adding hierarchical or other complex behavior simply involves writing factory fu
 
 Property assignment is another area where utilizing Java interop alone often doesn't result in satisfying, idiomatic Clojure or Lisp code, but Clojure Desktop Toolkit addresses this in a way that is both general and extensible.
 
-## Property assignment and type mismatch
+## Property assignment
 
 We already saw how we can assign to JavaBeans style properties simply by naming the property, in `kebab-case`, as a keyword and following this with the value we wish to assign.  For example:
 
@@ -23,9 +23,25 @@ We already saw how we can assign to JavaBeans style properties simply by naming 
   (text (| SWT/MULTI SWT/SCROLL_VERTICL)))
 ```
 
-In this case, setting the layout property using Java interop to construct a `FillLayout` isn't too bad, but other properties simply don't require this level of precision to specify the programmer's intent.
+Further, if you want to set subsequent properties of the child object, you can write:
 
-Let's set the weights of a window split (into two resizeable window panes):
+```clojure
+(shell "Browser 2"
+  (with-set-parent-property! :layout (FillLayout.)
+    :margin-height 10
+    :margin-width 10)
+  (browser SWT/WEBKIT (id! :ui/editor)
+    :javascript-enabled true
+    :url "https://www.google.com"))
+```
+
+In these cases, setting the property using Java interop to construct a `FillLayout` isn't too bad, but other property types don't work as well with Java interop.
+
+For example...
+
+## Property assignment and type mismatch
+
+Let's set the weights of a window split (of two resizeable window panes):
 
 ```clojure
 (sash-form SWT/HORIZONTAL
@@ -71,7 +87,7 @@ The *RightTypes* library on which Clojure Desktop Toolkit is built already suppl
 
 Whenever Clojure Desktop Toolkit attempts to set a property value, it first applies the `convert` multimethod.  If the types are already assignment-compatible, this multimethod behaves like identity.  Otherwise, if an appropriate conversion is defined for the specified pair of types, `convert` automatically coerces the supplied value into the expected type.
 
-## You can do this, too!
+### You can extend Clojure Desktop Toolkit this way, too!
 
 If you encounter a situation where Clojure Desktop Toolkit doesn't already convert types automatically, simply supply your own `convert` multimethod implementation for the desired pair of types.  Of course, pull requests for the `SWT_conversions.clj` namespace are appreciated too!
 

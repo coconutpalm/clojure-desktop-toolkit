@@ -8,7 +8,7 @@
             [ui.inits :as i]
             [ui.events :as e]
             [clojure.pprint :refer [pprint]]
-            [righttypes.util.names :refer [->camelCase]]
+            [righttypes.util.names :refer [->camelCase ->PascalCase]]
             [righttypes.nothing :refer [nothing something nothing->identity]])
   (:import [clojure.lang IFn]
            [org.eclipse.swt SWT]
@@ -16,14 +16,6 @@
            [org.eclipse.swt.layout FillLayout]
            [org.eclipse.swt.events TypedEvent]
            [org.eclipse.swt.widgets Display Shell TrayItem Listener Label]))
-
-;; TODO
-;;
-;; Make id! hierarchical.  An id! on a Text inside a Composite with an id winds
-;;  up as {:composite-id {:text-id the-text}}
-;;
-;;  (ap->let the-map & exprs) - Top-level keywords become variables in the let binding
-
 
 (defn ui-scale!
   "Scale the user interface by `factor` on GTK-based window systems.  Must be called before
@@ -74,38 +66,59 @@
   (fn [props parent]
     (f props parent)))
 
-(def main
-  "Define the Application's main function.  By convention, must come after creating the application shell.
-  Implemented as a synonym of `with-props`; it provides a way for a developer to communicate the intent
-  \"here is where everything starts\"."
-  initfn)
-
-
 (defmacro definit
-  "Syntactic sugar for (initfn (fn [props parent] forms))"
+  "Defines a special-purpose initialization node within a user interface tree.
+
+   Syntactic sugar for (initfn (fn [props parent] forms))."
   [[props parent] & forms]
   `(let [f# (fn [~props ~parent] ~@forms)]
      (initfn f#)))
 
 (defmacro defmain
-  "Syntactic sugar for (main (fn [props parent] forms))"
+  "Defines an init function node in a user interface tree.  By convention, this is used after the
+   entire user interface is constructed to bind data into the user interface elements.
+
+   Functionally identical to `definit`, but aids in program readability.
+
+   Syntactic sugar for (initfn (fn [props parent] forms))"
   [[props parent] & forms]
   `(let [f# (fn [~props ~parent] ~@forms)]
      (initfn f#)))
 
 
 (defn id!
-  "(swap! props assoc kw parent-control; Names parent-control using kw inside the props."
+  "Names `parent` control using `kw` inside the props.
+
+   (swap! props assoc kw parent)"
   [kw]
   (fn [props parent]
     (swap! props assoc kw parent)))
 
-(defn prop!
-  "Assigns v to the k entry in the props atom/map."
+(defn defprop!
+  "Define a prop entry; assigns `v` to the `k` entry in the props atom/map."
   [k v]
   (fn [props _]
     (swap! props assoc k v)))
 
+(defmacro with-set-parent-property!
+  "Set `new-value` on `property` of parent and run `initfns` on `new-value`.
+
+   An alternative to keyword syntax for setting property values where the value
+   to set into the property has its own properties that need to be set."
+  [property new-value & initfns]
+  (let [inits (vec initfns)
+        set-method (symbol (str ".set" (->PascalCase property)))]
+    `(fn [props# parent#]
+       (let [child# ~new-value
+             inits# (i/args->inits ~inits)]
+         (i/run-inits props# child# inits#)
+         (~set-method parent# child#)
+         child#))))
+
+(pprint
+ (macroexpand `(with-set-parent-property! :layout (FillLayout.)
+                :margin-height 10
+                :margin-width 10)))
 
 ;; =====================================================================================
 ;; Hand-coded APIs
@@ -118,7 +131,8 @@
 
 
 (defn fill-layout
-  "An init function for a fill layout."
+  "Set a (FillLayout.) on the parent `:layout` property, but allows further init functions to
+   specify the value of the `FillLayout`'s properties."
   [& args]
   (let [inits (i/args->inits args)]
     (fn [props parent]
@@ -422,8 +436,8 @@
     (f (atom {}) (Shell.)))
 
   (let [f (on e/shell-closed [props parent event] (when-not (:closing @props)
-                                                   (set! (. event doit) false)
-                                                   (.setVisible parent false)))]
+                                                    (set! (. event doit) false)
+                                                    (.setVisible parent false)))]
     (f (atom {}) (Shell.)))
 
 
@@ -564,19 +578,20 @@
   (ui
    (child-of @display (atom {})
              (shell "Browser 2" (id! :ui/shell)
-                    (fill-layout
-                     :margin-height 10
-                     :margin-width 10)
+                    (with-set-parent-property! :layout (FillLayout.)
+                      :margin-height 10
+                      :margin-width 10)
                     (browser SWT/WEBKIT (id! :ui/editor)
                              :javascript-enabled true
                              :url "https://www.google.com"))))
 
+
   (ui
    (child-of @display (atom {})
              (shell "Text editor" (id! :ui/textedit)
-                    (fill-layout
-                     :margin-height 10
-                     :margin-width 10)
+                    (with-set-parent-property! :layout (FillLayout.)
+                      :margin-height 10
+                      :margin-width 10)
                     (text (| SWT/MULTI SWT/V_SCROLL) (id! :ui/textedit)
                           (on e/modify-text [parent props event] (println (.getText (:ui/textedit @props))))))))
 
