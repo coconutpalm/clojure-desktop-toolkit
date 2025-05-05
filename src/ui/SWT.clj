@@ -59,20 +59,14 @@
 ;; =====================================================================================
 ;; Props manipulation
 
-(defn initfn
-  "Execute `f` passing `props` and `parent`.  Its purpose is to allow developers to inject or capture
-  state using the `props` atom during construction of the user interface."
-  [f]
-  (fn [props parent]
-    (f props parent)))
 
 (defmacro definit
   "Defines a special-purpose initialization node within a user interface tree.
 
    Syntactic sugar for (initfn (fn [props parent] forms))."
   [[props parent] & forms]
-  `(let [f# (fn [~props ~parent] ~@forms)]
-     (initfn f#)))
+  `(fn [~props ~parent] ~@forms))
+
 
 (defmacro defmain
   "Defines an init function node in a user interface tree.  By convention, this is used after the
@@ -82,8 +76,7 @@
 
    Syntactic sugar for (initfn (fn [props parent] forms))"
   [[props parent] & forms]
-  `(let [f# (fn [~props ~parent] ~@forms)]
-     (initfn f#)))
+  `(fn [~props ~parent] ~@forms))
 
 
 (defn id!
@@ -94,11 +87,23 @@
   (fn [props parent]
     (swap! props assoc kw parent)))
 
-(defn defprop!
+(defn reset-prop!
   "Define a prop entry; assigns `v` to the `k` entry in the props atom/map."
   [k v]
   (fn [props _]
     (swap! props assoc k v)))
+
+(defn update-in-prop!
+  "Like `update-in`, but swaps the result of invoking `f` on the `ks` path in the props atom/map."
+  [ks f]
+  (fn [props _]
+    (swap! props update-in ks f)))
+
+(defn assoc-in-prop!
+  "Like `assoc-in`, but updates the `ks` path in the props atom/map with v."
+  [ks v]
+  (fn [props _]
+    (swap! props assoc-in ks v)))
 
 (defmacro with-set-parent-property!
   "Set `new-value` on `property` of parent and run `initfns` on `new-value`.
@@ -115,11 +120,6 @@
          (~set-method parent# child#)
          child#))))
 
-(pprint
- (macroexpand `(with-set-parent-property! :layout (FillLayout.)
-                :margin-height 10
-                :margin-width 10)))
-
 ;; =====================================================================================
 ;; Hand-coded APIs
 
@@ -128,19 +128,6 @@
   widget constructor parameter."
   [& styles]
   (int (apply bit-or styles)))
-
-
-(defn fill-layout
-  "Set a (FillLayout.) on the parent `:layout` property, but allows further init functions to
-   specify the value of the `FillLayout`'s properties."
-  [& args]
-  (let [inits (i/args->inits args)]
-    (fn [props parent]
-      (let [layout (FillLayout.)]
-        (i/run-inits props layout inits)
-        (.setLayout parent layout)
-        (.layout parent)))))
-
 
 (defn tray-item
   "Define a system tray item.  Must be a child of the application node.  The :image
@@ -199,8 +186,7 @@
   []
   (->> (Display/getDefault)
        (.getShells)
-       (map #(.getData %))))
-
+       (mapcat #((when-not (.isDisposed %) [(.getData %)])))))
 
 (defn defchildren
   "Define children to add to specified parent"
@@ -501,6 +487,7 @@
      (reset! state props)
      (println (str (:ui/editor @props) " " parent)))))
 
+
 (defn hello []
   (application
    (shell SWT/SHELL_TRIM
@@ -568,6 +555,34 @@
   (def app (future (hello)))
 
   (def app (future (hello-desugared2)))
+
+  (defn minimize-to-tray []
+    (application
+     (tray-item
+      ;; System tray right-click handler
+      (on e/menu-detected [props parent event] (.setVisible (:ui/tray-menu @props) true))
+
+      ;; System tray click handler toggles visibility
+      (on e/widget-selected [props parent event] (let [shell (:ui/shell @props)]
+                                                   (.setVisible shell (not (.isVisible shell))))))
+
+     (shell
+      SWT/SHELL_TRIM (id! :ui/shell)
+      :layout (FillLayout.)
+      "Close minimizes to Tray"
+
+      (label SWT/WRAP "This program minimizes to the system tray and remains running when its shell is closed.")
+
+      (on e/shell-closed [props parent event] (when-not (:closing @props)
+                                                (set! (. event doit) false)
+                                                (.setVisible parent false)))
+
+      (menu SWT/POP_UP (id! :ui/tray-menu)
+            (menu-item SWT/PUSH "&Quit"
+                       (on e/widget-selected [parent props event] (swap! props #(update-in % [:closing] (constantly true)))
+                           (.close (:ui/shell @props))))))))
+
+  (def app (future (minimize-to-tray)))
 
 
   {:app app}
