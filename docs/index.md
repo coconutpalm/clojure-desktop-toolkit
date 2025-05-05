@@ -20,8 +20,10 @@ Let's examine the API and usage more closely.
 * [Hello, world](hello-world.md)
 * [Hello, world without syntactic sugar](hello-world-no-sugar.md)
 * [Idiomatic SWT property assignment](idiomatic-property-assignment.md)
-* [Props and state management](props-and-state.md)
-* [Event handling]
+* [Props, custom init functions, and state management](props-and-state.md)
+* [Event handling](event-handling.md)
+* [The user interface thread](the-ui-thread.md)
+* [Disposable resources](disposable-resources.md)
 
 SWT Basics
 
