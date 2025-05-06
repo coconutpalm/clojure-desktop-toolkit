@@ -2,7 +2,7 @@
 
 Operating system user interfaces don't have garbage collectors to automatically dispose of resources.  SWT respects this.
 
-The method you need for this is called `dispose`.  The rule is, "If you created it, you disposse it, unless you set it on a widget and the widget now owns it."
+The method you need for this is called `dispose`.  The rule is, "If you created it, you dispose it, unless you set it on a widget and the widget now owns it."
 
 ## Common things that need to be disposed
 
