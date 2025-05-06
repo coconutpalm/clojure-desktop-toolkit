@@ -1,4 +1,4 @@
-# ![Logo](images/icon32x32.png) Clojure Desktop Toolkit Tutorial
+# ![Logo](images/icon32x32.png) Clojure Desktop Toolkit Documentation
 
 Start here. 😁
 
