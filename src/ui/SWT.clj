@@ -479,7 +479,7 @@
 
     (menu SWT/POP_UP (id! :ui/tray-menu)
           (menu-item SWT/PUSH "&Quit"
-                     (on e/widget-selected [parent props event] (swap! props #(update-in % [:closing] (constantly true)))
+                     (on e/widget-selected [parent props event] (swap! props #(assoc-in % [:closing] true))
                          (.close (:ui/shell @props))))))
 
    (defmain [props parent]
@@ -579,7 +579,7 @@
 
       (menu SWT/POP_UP (id! :ui/tray-menu)
             (menu-item SWT/PUSH "&Quit"
-                       (on e/widget-selected [parent props event] (swap! props #(update-in % [:closing] (constantly true)))
+                       (on e/widget-selected [parent props event] (swap! props assoc :closing true)
                            (.close (:ui/shell @props))))))))
 
   (def app (future (minimize-to-tray)))
