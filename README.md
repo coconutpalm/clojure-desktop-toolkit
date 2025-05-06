@@ -6,7 +6,8 @@
 
 *Version 0.0.2; initial public release; includes full SWT API support*
 
-**Upcoming version [New and Noteworthy](docs/new-and-noteworthy/version-0.2.0.md)**
+* **Upcoming version [New and Noteworthy](docs/new-and-noteworthy/version-0.2.0.md)**
+* **[Current documentation](docs/index.md)**
 
 Web applications used to be simpler and easier to build than desktop graphical applications.  With the expectations of modern CSS and Javascript, this is no longer the case.  Modern web applications are beautiful, but they are expensive.
 
