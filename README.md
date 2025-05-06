@@ -69,7 +69,7 @@ An application that minimizes itself to the system tray and hosts several panes 
 
     (menu SWT/POP_UP (id! :ui/tray-menu)
           (menu-item SWT/PUSH "&Quit"
-                     (on e/widget-selected [parent props event] (swap! props #(update-in % [:closing] (constantly true)))
+                     (on e/widget-selected [parent props event] (swap! props assoc :closing true))
                          (.close (:ui/shell @props))))))
 
    (defmain [props parent]
