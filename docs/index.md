@@ -25,17 +25,20 @@ Tutorial
 * [The user interface thread](the-ui-thread.md)
 * [Disposable resources](disposable-resources.md)
 
-SWT Basics
+SWT Basics - A basic tour and quick reference
 
-* The SWT widget hierarchy (swt-basics, composite, canvas)
-* Typical widget methods (swt-widget-api)
-* SWT layout managers
-* Graphics and drawing
-* SWT Items
+* SWT documentation at Eclipse.org
+   * [Widgets](https://help.eclipse.org/latest/topic/org.eclipse.platform.doc.isv/guide/swt_widgets.htm?cp=2_0_7_0)
+   * [Layouts](https://help.eclipse.org/latest/topic/org.eclipse.platform.doc.isv/guide/swt_layouts.htm?cp=2_0_7_1)
+* [The SWT widget hierarchy](swt-widget-hierarchy.md) (swt-basics, composite, canvas)
+* [Typical widget methods](swt-widget-api.md) (swt-widget-api)
+* [SWT layout managers](layout-managers.md)
+* [SWT Items](swt-items.md)
+* [Graphics and drawing](graphics-classes.md)
 
 Reference information
 
-* The `swtdoc` API and online references
+* Try the `swtdoc` function in the REPL
 * [The SWT "snippets" collection](https://eclipse.dev/eclipse/swt/snippets/index.html)
 * [Design principles](principles.md)
 
