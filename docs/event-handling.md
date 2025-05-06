@@ -2,7 +2,7 @@
 
 Like most user interface toolkits, Eclipse SWT responds to user interaction within a user interface via events, or functions that the toolkit invokes when given user interface actions occur.
 
-While it is possible to use Java interop APIs to add listeners and implement event handlers using custom init functions, Clojure Desktop Toolkit provides a macro, the `on` macro, that eliminates the boilerplate for this common use-case.
+While it is possible to use Java interop APIs to add listeners and implement event handlers using custom Clojure Desktop Toolkit init functions, Clojure Desktop Toolkit provides a macro, the `on` macro, that eliminates the boilerplate for this common use-case.
 
 In this chapter, we will:
 
@@ -13,7 +13,9 @@ In this chapter, we will:
 
 ## The `on` macro
 
-Here's a simple program that:
+Since I anticipate readers are already familiar with event handling generally, let's start with a specific code example as an illustration.
+
+This program:
 
 1. When closed, hides itself and keeps runnin in the system tray.
 2. Toggles its visibility when the system tray icon is clicked.
