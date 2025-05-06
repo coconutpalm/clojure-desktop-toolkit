@@ -15,11 +15,11 @@ Getting started
 * Install Java, Clojure, Visual Studio Code, and Calva
 * Create a new Clojure Desktop Toolkit application
 
-Let's examine the API and usage more closely.
+Tutorial
 
-* [Hello, world](hello-world.md)
+* [Hello, world](hello-world.md) - The basic API
 * [Hello, world without syntactic sugar](hello-world-no-sugar.md)
-* [Idiomatic SWT property assignment](idiomatic-property-assignment.md)
+* [Idiomatic SWT property assignment and type conversions](idiomatic-property-assignment.md)
 * [Props, custom init functions, and state management](props-and-state.md)
 * [Event handling](event-handling.md)
 * [The user interface thread](the-ui-thread.md)
