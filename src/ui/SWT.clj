@@ -105,7 +105,7 @@
   (fn [props _]
     (swap! props assoc-in ks v)))
 
-(defmacro with-set-parent-property!
+(defmacro with-property
   "Set `new-value` on `property` of parent and run `initfns` on `new-value`.
 
    An alternative to keyword syntax for setting property values where the value
@@ -593,7 +593,7 @@
   (ui
    (child-of @display (atom {})
              (shell "Browser 2" (id! :ui/shell)
-                    (with-set-parent-property! :layout (FillLayout.)
+                    (with-property :layout (FillLayout.)
                       :margin-height 10
                       :margin-width 10)
                     (browser SWT/WEBKIT (id! :ui/editor)
@@ -604,7 +604,7 @@
   (ui
    (child-of @display (atom {})
              (shell "Text editor" (id! :ui/textedit)
-                    (with-set-parent-property! :layout (FillLayout.)
+                    (with-property :layout (FillLayout.)
                       :margin-height 10
                       :margin-width 10)
                     (text (| SWT/MULTI SWT/V_SCROLL) (id! :ui/textedit)

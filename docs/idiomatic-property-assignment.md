@@ -27,7 +27,7 @@ Further, if you want to set subsequent properties of the child object, you can w
 
 ```clojure
 (shell "Browser 2"
-  (with-set-parent-property! :layout (FillLayout.)
+  (with-property :layout (FillLayout.)
     :margin-height 10
     :margin-width 10)
   (browser SWT/WEBKIT (id! :ui/editor)
