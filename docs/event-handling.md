@@ -42,7 +42,7 @@ This program:
    (menu SWT/POP_UP (id! :ui/tray-menu)
       (menu-item SWT/PUSH "&Quit"
         (on e/widget-selected [parent props event] (swap! props assoc :closing true)
-        (.close (:ui/shell @props)))))))
+                                                   (.close (:ui/shell @props)))))))
 ```
 
 Many techniques are illustrated above, but we have covered enough up to this point in the tutorial that you should be able to follow the code without any further explanation.
