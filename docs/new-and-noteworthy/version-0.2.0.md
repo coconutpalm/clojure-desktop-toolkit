@@ -6,7 +6,7 @@ The following are noteworthy additions since the prior release.
 
 ## New documentation
 
-This release adds a new [tutorial](../index.md) covering the full RightTypes API and introducing SWT's API.
+This release adds a new [tutorial](../index.md) covering the full Clojure Desktop Toolkit API and introducing SWT's API.
 
 ## More automatic type conversion coverage
 
