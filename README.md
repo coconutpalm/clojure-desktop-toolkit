@@ -12,7 +12,7 @@ Web applications used to be simpler and easier to build than desktop graphical a
 
 Sometimes a small, fast, lightweight desktop application is just the right thing.
 
-## Sponsor
+## Sponsorship
 
 If you find this work useful or inspiring, please sponsor me or hire me!
 
