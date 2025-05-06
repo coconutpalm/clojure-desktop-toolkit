@@ -114,13 +114,17 @@ See the [tutorial and reference](docs/index.md).
 
 ## Project status
 
-This project is usable, but very early.  Currently, Clojure Desktop Toolkit supports 100% of the SWT API, though there are a few corner cases that require Java interop.
+Currently, Clojure Desktop Toolkit supports 100% of the SWT API.  Places that require Java interop are generally pleasant to work with.
+
+This project is usable, but still very early.  I am using it as the foundation for another project.  If anyone else uses it for a utility, project, or whatever, please contact me and I'll link to you here!
 
 Here's what works well:
 
-* SWT's Webkit-based browser widget works well.  *Goodbye Electron!!!*  There's also a GPL-3 community driven Chromium integration that is said to be stellar.
-
 * The API for constructing a SWT user interface has been stable for awhile now and is unlikely to change much if at all.
+
+* Event handling the traditional way.
+
+* SWT's Webkit-based browser widget works well.  *Goodbye Electron!!!*  There's also a GPL-3 community driven Chromium integration that is said to be stellar.
 
 ### Areas of active work
 
@@ -133,8 +137,6 @@ The following are areas of active work; you can expect breaking changes here:
 * SWT event handling is currently supported in the usual way: by adding listeners.  A macro eliminates the usual Java boilerplate, and this makes it very convenient to code imperatively. 😁  LOL.
 
    * Goals for improving this include integrating Missionary via Eclipse Databinding (I was one of Eclipse Databinding's founding engineers/architects).  Maybe an Electric Clojure integration will be in order too!  Hyperfiddle folks--hit me up if you're interested in helping or hiring me!
-
-* Improved error reporting.  There are a few cases where root causes aren't obvious enough.
 
 * `(swtdoc)` already provides interactive ways to explore the API.  There is a lot of opportunity to improve this with, ehm, *graphical* tools as well.
 
