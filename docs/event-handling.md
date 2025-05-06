@@ -17,9 +17,9 @@ Since I anticipate readers are already familiar with event handling generally, l
 
 This program:
 
-1. When closed, hides itself and keeps runnin in the system tray.
+1. When closed, hides itself and keeps running in the system tray.
 2. Toggles its visibility when the system tray icon is clicked.
-3. Only quits, when the system tray menu's "Quit" option is selected.
+3. Only quits when the system tray menu's "Quit" item is selected.
 
 ```clojure
 (application
