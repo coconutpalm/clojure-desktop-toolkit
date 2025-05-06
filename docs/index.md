@@ -18,7 +18,7 @@ Getting started
 Tutorial
 
 * [Hello, world](hello-world.md) - The basic API
-* [Hello, world without syntactic sugar](hello-world-no-sugar.md)
+* [Hello, world without syntactic sugar](hello-world-no-sugar.md) - Learn how (nearly) everything works
 * [Idiomatic SWT property assignment and type conversions](idiomatic-property-assignment.md)
 * [Props, custom init functions, and state management](props-and-state.md)
 * [Event handling](event-handling.md)
