@@ -15,7 +15,7 @@ Sometimes a small, fast, lightweight desktop application is just the right thing
 
 ## Sponsorship
 
-If you find this work useful or inspiring, please sponsor me or hire me!
+If you find this work useful or inspiring, please [sponsor me](https://github.com/sponsors/coconutpalm) or hire me!
 
 ## What?
 
