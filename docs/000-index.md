@@ -23,7 +23,7 @@ Tutorial
 * [Props, custom init functions, and state management](040-props-and-state.md)
 * [Event handling](050-event-handling.md)
 * [The user interface thread](060-the-ui-thread.md)
-* [Disposable resources](070disposable-resources.md)
+* [Disposable resources](070-disposable-resources.md)
 
 SWT Basics - A basic tour and quick reference
 
