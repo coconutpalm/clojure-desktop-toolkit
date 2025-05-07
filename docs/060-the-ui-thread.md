@@ -17,4 +17,4 @@ Here are the rules to keep in mind:
 4. For code that can run asynchronously, but has to run on the UI thread, use the `async-exec!` function.  It accepts a Clojure function and queues that function to run later on the SWT thread's event loop.
 
 
-[Return to documentation index](index.md)
+[Return to documentation index](000-index.md)

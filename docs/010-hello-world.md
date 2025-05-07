@@ -88,4 +88,4 @@ At this point, you might be appreciating the clarity and succinctness of code wr
 
 In our next episode, we'll pull back the curtain and rewrite "Hello, world" without using any of Clojure Desktop Toolkit's syntax sugar.  You'll see exactly what the library is doing and learn how you can extend it yourself--the same way it was written itself.
 
-[Return to documentation index](index.md)
+[Return to documentation index](000-index.md)

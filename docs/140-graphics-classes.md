@@ -6,4 +6,4 @@ Some things (like colors and fonts) may also be assigned to properties of regula
 
 ![Drawing classes](images/swt/drawable-tools.png)
 
-[Return to documentation index](index.md)
+[Return to documentation index](000-index.md)

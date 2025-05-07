@@ -7,7 +7,7 @@
 *Version 0.0.2; initial public release; includes full SWT API support*
 
 * **Upcoming version [New and Noteworthy](docs/new-and-noteworthy/version-0.2.0.md)**
-* **[Current documentation](docs/index.md)**
+* **[Current documentation](docs/000-index.md)**
 
 Web applications used to be simpler and easier to build than desktop graphical applications.  With the expectations of modern CSS and Javascript, this is no longer the case.  Modern web applications are beautiful, but they are expensive.
 
@@ -27,7 +27,7 @@ A significant barrier to using Eclipse SWT for non-Eclipse applications has been
 
 ### Example
 
-If you want to jump straight to [the tutorial](docs/index.md), you can.
+If you want to jump straight to [the tutorial](docs/000-index.md), you can.
 
 An application that minimizes itself to the system tray and hosts several panes of information:
 
@@ -111,7 +111,7 @@ Currently we support `deps.edn` via the Github transport.  Other artifact reposi
 
 ## Documentation
 
-See the [tutorial and reference](docs/index.md).
+See the [tutorial and reference](docs/000-index.md).
 
 ## Project status
 

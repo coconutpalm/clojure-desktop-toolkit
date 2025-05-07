@@ -80,4 +80,4 @@ You can use either form when writing code, but you get spellchecking and IDE loo
 
 To write event listeners, use the `on` macro.  The list of possible events is in the `ui.events` namespace, and you can consult the SWT API for a given SWT widget to learn what listeners and listener methods a specific SWT widget supports.
 
-[Return to documentation index](index.md)
+[Return to documentation index](000-index.md)

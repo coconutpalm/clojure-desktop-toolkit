@@ -4,4 +4,4 @@ For some kinds of widgets, `Item`s describe the widget's content.
 
 ![Item classes](images/swt/item.png)
 
-[Return to documentation index](index.md)
+[Return to documentation index](000-index.md)

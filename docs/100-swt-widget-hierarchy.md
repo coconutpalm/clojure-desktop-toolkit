@@ -21,4 +21,4 @@ Within SWT, custom controls have a "C" prefix.  `CBanner`, `CCombo`, etc., are e
 ![Canvas](images/swt/canvas.png)
 
 
-[Return to documentation index](index.md)
+[Return to documentation index](000-index.md)

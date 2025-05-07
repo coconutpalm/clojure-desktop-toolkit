@@ -104,4 +104,4 @@ To facilitate this, Clojure Desktop Toolkit supplies functions for adding or cha
 In addition, CLojure Desktop Toolkit supplies utilities for creating custom init functions when direct access to the props map is necessary.
 
 
-[Return to documentation index](index.md)
+[Return to documentation index](000-index.md)

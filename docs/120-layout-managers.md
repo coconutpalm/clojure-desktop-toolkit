@@ -4,4 +4,4 @@ Consult SWT's documentation for details on how to use SWT's layout managers.
 
 ![Layout managers](images/swt/layout.png)
 
-[Return to documentation index](index.md)
+[Return to documentation index](000-index.md)

@@ -36,4 +36,4 @@ This is part to-do list and part record of design choices.  It is intended both 
 * Because reflection, type errors can be explicit and self-explanatory.
 * Keep the path to the widget-being-constructed and include the breadcrumb in error messages.
 
-[Return to documentation index](index.md)
+[Return to documentation index](000-index.md)

@@ -27,4 +27,4 @@ Regarding this latter case, Clojure Desktop Toolkit supplies a macro to help.  `
 ```
 
 
-[Return to documentation index](index.md)
+[Return to documentation index](000-index.md)

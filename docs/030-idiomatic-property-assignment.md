@@ -92,4 +92,4 @@ Whenever Clojure Desktop Toolkit attempts to set a property value, it first appl
 If you encounter a situation where Clojure Desktop Toolkit doesn't already convert types automatically, simply supply your own `convert` multimethod implementation for the desired pair of types.  Of course, pull requests for the `SWT_conversions.clj` namespace are appreciated too!
 
 
-[Return to documentation index](index.md)
+[Return to documentation index](000-index.md)
