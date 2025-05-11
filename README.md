@@ -4,7 +4,9 @@
 
 > ***Returning joy to desktop application development!*** 😁
 
-*Version 0.0.2; initial public release; includes full SWT API support*
+
+[![Clojars Project](https://img.shields.io/clojars/v/io.github.coconutpalm/clojure-desktop-toolkit.svg)](https://clojars.org/io.github.coconutpalm/clojure-desktop-toolkit)
+
 
 * **Upcoming version [New and Noteworthy](docs/new-and-noteworthy/version-0.2.0.md)**
 * **[Current documentation](docs/000-index.md)**

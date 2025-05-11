@@ -7,3 +7,5 @@ tmp
 .calva
 .vscode
 .nrepl-port
+
+clojure-desktop-toolkit.jar
