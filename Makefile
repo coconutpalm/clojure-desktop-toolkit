@@ -1,8 +1,16 @@
-
-jar:
-	clojure -X:jar :version '"0.2.1"'
-
-deploy:
-	env CLOJARS_USERNAME=coconutpalm CLOJARS_PASSWORD=${CLOJARS_PASSWORD} clj -X:deploy
+# Release Checklist:
+#
+# Update version in SCM tag in POM.xml
+# Update version number here
+# `make`
+# Push changes to Github
+# Create version tag on Github
 
 ALL: jar deploy
+
+jar:
+	exec clojure -X:jar :version '"0.2.2"'
+
+deploy:
+	./deploy.sh
+
