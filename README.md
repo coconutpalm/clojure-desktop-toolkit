@@ -8,7 +8,7 @@
 [![Clojars Project](https://img.shields.io/clojars/v/io.github.coconutpalm/clojure-desktop-toolkit.svg)](https://clojars.org/io.github.coconutpalm/clojure-desktop-toolkit)
 
 
-* **Upcoming version [New and Noteworthy](docs/new-and-noteworthy/version-0.2.0.md)**
+* **[New and Noteworthy](docs/new-and-noteworthy/version-0.2.0.md)**
 * **[Current documentation](docs/000-index.md)**
 
 Web applications used to be simpler and easier to build than desktop graphical applications.  With the expectations of modern CSS and Javascript, this is no longer the case.  Modern web applications are beautiful, but they are expensive.
