@@ -14,3 +14,6 @@ jar:
 deploy:
 	./deploy.sh
 
+clean:
+	rm -f *.jar
+
