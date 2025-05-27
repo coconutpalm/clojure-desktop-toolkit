@@ -20,7 +20,7 @@ We already saw how we can assign to JavaBeans style properties simply by naming 
 (composite
   :layout (FillLayout.)
 
-  (text (| SWT/MULTI SWT/SCROLL_VERTICL)))
+  (text (| SWT/MULTI SWT/SCROLL_VERTICAL)))
 ```
 
 Further, if you want to set subsequent properties of the child object, you can write:
