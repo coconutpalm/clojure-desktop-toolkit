@@ -36,7 +36,9 @@
 
 (defonce
   ^{:doc "Result of loading SWT subsystem dependencies."}
-  swt-libs-loaded? (add-libs swt-libs))
+  swt-libs-loaded? (try (import '[org.eclipse.swt SWT])
+                        (catch ClassNotFoundException _e
+                          (add-libs swt-libs))))
 
 ;; Chromium and dependencies --------------------------------------------------------
 
@@ -59,9 +61,8 @@
 ;; Probably need to compile/package this myself because of dependencies
 (def ^:dynamic *databinding-version* "1.13.300")
 
-(defn databinding-lib 
+(defn databinding-lib
   [subproject]
   (symbol "org.eclipse.platform" (str "org.eclipse.core.databinding" (when subproject (str "." subproject))) ))
 
 (databinding-lib nil)
-  
