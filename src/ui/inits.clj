@@ -130,5 +130,4 @@
   2-arg constructor convention [parent style]."
   [classes]
   (let [inits (widget-classes->inits (var-get (resolve classes)))]
-    `(let []
-       ~@inits)))
+    `(do ~@inits)))
