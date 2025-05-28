@@ -1,10 +1,8 @@
-(remove-ns 'ui.internal.SWT-deps)
-
 (ns ui.internal.SWT-deps
   "Dynamically resolve/load SWT subsystem dependencies when this namespace is required"
   (:require
    [clojure.java.io :as io]
-   [clojure.repl.deps :refer [sync-deps add-libs]]))
+   [clojure.repl.deps :refer [add-libs]]))
 
 
 (def platform-lib-suffix

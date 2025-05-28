@@ -1,5 +1,3 @@
-(remove-ns 'ui.SWT)
-
 (ns ui.SWT
   (:refer-clojure :exclude [list])
   (:require [ui.internal.SWT-deps]
@@ -56,7 +54,6 @@
 
 ;; =====================================================================================
 ;; Props manipulation
-
 
 (defmacro definit
   "Defines a special-purpose initialization node within a user interface tree.
