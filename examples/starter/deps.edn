@@ -1,0 +1,10 @@
+{:paths ["src" "../../src"]
+
+ :mvn/repos {"clojure-desktop-toolkit"
+             {:url "https://coconutpalm.github.io/clojure-desktop-toolkit/maven"}}
+
+ :deps {org.clojure/clojure {:mvn/version "1.12.0"}                           ;; Clojure 1.12.0 or later is required
+        io.github.coconutpalm/clojure-desktop-toolkit {:mvn/version "LATEST"} ;; Change to your actual version
+        ,,,,}
+
+ :aliases {:dev {:paths ["src" "dev"]}}}

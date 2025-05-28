@@ -8,7 +8,7 @@
 [![Clojars Project](https://img.shields.io/clojars/v/io.github.coconutpalm/clojure-desktop-toolkit.svg)](https://clojars.org/io.github.coconutpalm/clojure-desktop-toolkit)
 
 
-* **[New and Noteworthy](docs/new-and-noteworthy/version-0.2.0.md)**
+* **[New and Noteworthy](docs/new-and-noteworthy/version-0.3.1.md)**
 * **[Current documentation](docs/000-index.md)**
 
 Web applications used to be simpler and easier to build than desktop graphical applications.  With the expectations of modern CSS and Javascript, this is no longer the case.  Modern web applications are beautiful, but they are expensive.
@@ -93,27 +93,6 @@ The above application running.
 Notice how the library automatically supplies links to Eclipse's SWT documentation.  There's also a `(swtdoc)` command for interactively exploring the API from the REPL.
 
 ![Screenshot](docs/images/demo-app.png)
-
-
-## How do I use it?
-
-Clojure Desktop Toolkit requires Clojure 1.12.0 or later.  (We use its `add-libs` API to dynamically detect, select, and load the correct platform-specific SWT library.)
-
-Currently we support `deps.edn` via the Github transport.  Other artifact repositories are coming.
-
-```clojure
-{:paths ["src" "dev"] ; your paths
-
- :mvn/repos {"clojure-desktop-toolkit"
-              {:url "https://coconutpalm.github.io/clojure-desktop-toolkit/maven"}}
-
- :deps {org.clojure/clojure {:mvn/version "1.12.0"}
-        io.github.coconutpalm/clojure-desktop-toolkit {:git/sha "PICK-A-SHA"}}}
-```
-
-## Documentation
-
-See the [tutorial and reference](docs/000-index.md).
 
 ## Project status
 
