@@ -1,4 +1,4 @@
-{:paths ["src" "../../src"]
+{:paths ["src"]
 
  :mvn/repos {"clojure-desktop-toolkit"
              {:url "https://coconutpalm.github.io/clojure-desktop-toolkit/maven"}}
