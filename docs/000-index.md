@@ -28,6 +28,7 @@ Tutorial
 SWT Basics - A basic tour and quick reference
 
 * [SWT documentation at Eclipse.org](https://eclipse.dev/eclipse/swt/)
+   * [Layout manager tutorial](https://www.eclipse.org/articles/article/?file=Article-Understanding-Layouts/index.html)
    * [Widgets](https://help.eclipse.org/latest/topic/org.eclipse.platform.doc.isv/guide/swt_widgets.htm?cp=2_0_7_0)
    * [Layouts](https://help.eclipse.org/latest/topic/org.eclipse.platform.doc.isv/guide/swt_layouts.htm?cp=2_0_7_1)
 * [The SWT widget hierarchy](100-swt-widget-hierarchy.md)
