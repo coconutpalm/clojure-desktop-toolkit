@@ -9,9 +9,9 @@
   *barf-stream* *out*)
 
 (def ^{:dynamic true
-       :doc "A function to barf an error to the appropriate sink.  Defaults to pretty printing to *barf-stream*"} 
-  *barf* 
-  (fn [^String error]
+       :doc "A function to barf an error to the appropriate sink.  Defaults to pretty printing to *barf-stream*"}
+  *barf*
+  (fn [error]
     (binding [*out* *barf-stream*]
       (pprint error))))
 
@@ -23,20 +23,20 @@
 
    If an exception occurs, creates an `ex-info` containing `context` and wrapping the exception.  Then
    barfs the full `ex-info` stack trace to `*barf-stream*` (which is bound to `*out*` by default).
-   
+
    Returns the result of executing `forms` or the caught exception if one occurs."
   [context & forms]
   `(try
      ~@forms
      (catch Throwable t#
-       (*barf* (Throwable->map 
-                (ex-info "Unexpected error: Barfing!" {:context ~context} t#))) 
+       (*barf* (Throwable->map
+                (ex-info "Unexpected error: Barfing!" {:context ~context} t#)))
        t#)))
 
 (tests
- #_(with-maybe-barf 42 
+ #_(with-maybe-barf 42
    (throw (ex-info "hello" {:world :goodbye})))
- 
+
  (with-maybe-barf [:testing 123]
    42)
  :eot)
