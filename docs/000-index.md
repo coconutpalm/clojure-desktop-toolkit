@@ -39,7 +39,7 @@ SWT Basics - A basic tour and quick reference
 Reference information
 
 * Try the `swtdoc` function in the REPL
-* [The SWT "snippets" collection](https://eclipse.dev/eclipse/swt/snippets/index.html)
+* [The SWT "snippets" example encyclopedia](https://eclipse.dev/eclipse/swt/snippets/index.html)
 * [Design principles](200-principles.md)
 
 [Back to README.md](../README.md)
