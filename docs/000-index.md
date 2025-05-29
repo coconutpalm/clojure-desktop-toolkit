@@ -42,4 +42,11 @@ Reference information
 * [The SWT "snippets" example encyclopedia](https://eclipse.dev/eclipse/swt/snippets/index.html)
 * [Design principles](200-principles.md)
 
+Eclipse Databinding
+
+As the Hyperfiddle developers observe, user interfaces are directed acyclic graphs (DAGs).  It would be nice to model this directly rather than handle events all the time.  Current work is to support Eclipse/JFace Databinding (possibly using Missionary).  In the meantime, the following references may be helpful:
+
+* [JFace Databinding Documentation](https://github.com/eclipse-platform/eclipse.platform.ui/blob/master/docs/JFaceDataBinding.md)
+* Maven coordinates: `org.eclipse.platform/org.eclipse.jface.databinding {:mvn/version "1.15.300"}`
+
 [Back to README.md](../README.md)
