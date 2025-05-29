@@ -31,6 +31,8 @@ SWT Basics - A basic tour and quick reference
    * [Layout manager tutorial](https://www.eclipse.org/articles/article/?file=Article-Understanding-Layouts/index.html)
    * [Widgets](https://help.eclipse.org/latest/topic/org.eclipse.platform.doc.isv/guide/swt_widgets.htm?cp=2_0_7_0)
    * [Layouts](https://help.eclipse.org/latest/topic/org.eclipse.platform.doc.isv/guide/swt_layouts.htm?cp=2_0_7_1)
+   * [Managing operating system resources](https://www.eclipse.org/articles/swt-design-2/swt-design-2.html) official document
+      * (See also [Disposable resources](070-disposable-resources.md))
 * [The SWT widget hierarchy](100-swt-widget-hierarchy.md)
 * [Typical widget methods](110-swt-widget-api.md)
 * [SWT layout managers](120-layout-managers.md)
