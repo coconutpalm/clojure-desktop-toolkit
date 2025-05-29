@@ -13,7 +13,7 @@ This is what the Clojure Desktop Toolkit does; it also makes SWT and Clojure Des
 Getting started
 
 * Install Java, Clojure, Visual Studio Code, and Calva
-* [A minimal Clojure Desktop Toolkit application](../examples/starter)
+* [A minimal/starter Clojure Desktop Toolkit application](../examples/starter)
 
 Tutorial
 
