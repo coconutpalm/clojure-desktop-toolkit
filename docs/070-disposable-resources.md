@@ -26,5 +26,8 @@ Regarding this latter case, Clojure Desktop Toolkit supplies a macro to help.  `
             (. fillRectangle (.getBounds image)))
 ```
 
+## Further reading
+
+[Managing Operating System Resources](https://www.eclipse.org/articles/swt-design-2/swt-design-2.html)
 
 [Return to documentation index](000-index.md)
