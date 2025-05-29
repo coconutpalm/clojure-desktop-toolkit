@@ -192,6 +192,19 @@
       (i/run-inits props parent inits))))
 
 
+(defmacro widget
+  "Construct a widget given its Java Class object, its style bits and optional init functions.
+   The purpose is to support arbitrary SWT customn widgets that follow SWT's naming conventions
+   that aren't already mapped to the Clojure Desktop Toolkit API.
+
+   Provisional API.  This API may change or move."
+  [clazz style-bits & initfns]
+  `(fn [props# parent#]
+     (let [child# (new ~clazz parent# ~style-bits)]
+       (doall (map (fn [initfn#] (initfn# props# child#)) [~@initfns]))
+       child#)))
+
+
 ;; =====================================================================================
 ;; Specialized online docs
 
