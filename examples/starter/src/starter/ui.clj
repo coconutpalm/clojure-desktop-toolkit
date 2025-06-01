@@ -15,7 +15,7 @@
 
     :layout (FillLayout.)
 
-    (label "Hello, world"))))
+    (label SWT/WRAP "Hello, world is the traditional message used to demonstrate a new language or user interface toolkit."))))
 
 
 
