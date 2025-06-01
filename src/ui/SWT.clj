@@ -1,3 +1,5 @@
+(remove-ns 'ui.SWT)
+
 (ns ui.SWT
   (:refer-clojure :exclude [list])
   (:require [ui.internal.SWT-deps]
@@ -20,6 +22,13 @@
   the Display is initialized."
   [factor]
   (let [multiplier (str factor)]
+    ; This used to work, but newer GTK/SWT seems to not work, at least on KDE.
+    ;
+    ; You may need to talk to GDK directly via:
+    ;
+    ; GDK_DPI_SCALE=1.5 GDK_SCALE=1.5 clojure -M -m starter.main
+    ;
+    (System/setProperty "swt.autoScale" multiplier)
     (System/setProperty "sun.java2d.uiScale" multiplier)
     (System/setProperty "glass.gtk.uiScale" multiplier)))
 

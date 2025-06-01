@@ -1,3 +1,5 @@
+(remove-ns 'ui.internal.docs)
+
 (ns ui.internal.docs
   (:require [ui.internal.reflectivity :as meta]
             [righttypes.conversions :refer :all]))

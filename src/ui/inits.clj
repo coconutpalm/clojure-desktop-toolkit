@@ -1,3 +1,5 @@
+(remove-ns 'ui.inits)
+
 (ns ui.inits
   "Defines API for defining and manipulating init functions.  An init function is a function
   where the initial argument is the object to init and subsequent arguments (if any)
