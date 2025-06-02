@@ -11,7 +11,7 @@
   [& _args]
   (application
    (shell
-    "Hello application"
+    "Hello, world"
 
     :layout (FillLayout.)
 

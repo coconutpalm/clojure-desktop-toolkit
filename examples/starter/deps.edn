@@ -7,4 +7,9 @@
         io.github.coconutpalm/clojure-desktop-toolkit {:mvn/version "LATEST"} ;; Change to your actual version
         ,,,,}
 
- :aliases {:dev {:paths ["src" "dev"]}}}
+ :aliases
+ {:dev {:paths ["src" "dev"]}
+
+  :build {:deps {io.github.clojure/tools.build {:mvn/version "0.10.9"}}
+          :ns-default build}}}
+

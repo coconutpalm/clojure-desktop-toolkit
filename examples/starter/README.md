@@ -5,6 +5,16 @@ Clojure Desktop Toolkit app.
 
 # Run...
 
-```clojure
+```bash
 clojure -M -m starter.main
 ```
+
+# Build an Uberjar
+
+```bash
+clj -T:build uber
+```
+
+# The Makefile
+
+The Makefile documents other ways to (build and) run this application.

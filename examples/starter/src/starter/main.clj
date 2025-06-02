@@ -1,7 +1,8 @@
 (ns starter.main
   "We dynamically load the correct platform-specific SWT libraries for the running platform.  In order to do this,
    we have to configure Clojure to allow dynamic loading at runtime before we `require` anything that involves
-   the UI.  This `main` namespace shows how to do this.")
+   the UI.  This `main` namespace shows how to do this."
+  (:gen-class))
 
 (defn -main
   "Start the app."
