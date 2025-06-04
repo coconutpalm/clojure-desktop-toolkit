@@ -22,5 +22,6 @@
   (b/uber {:class-dir class-dir
            :uber-file uber-file
            :basis @basis
+           :manifest {"SplashScreen-Image" "loading.gif"}
            :main 'starter.main}))
 
