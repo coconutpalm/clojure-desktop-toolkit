@@ -10,7 +10,7 @@ This is what the Clojure Desktop Toolkit does.  Clojure Desktop Toolkit assists 
 
 When you have worked through the documentation, you should be able to read SWT code examples and Javadocs and immediately understand how to write the equivalent Clojure code.
 
-I hope this toolkit returns joy to creating beautiful and useful desktop applications. 😁
+I hope this toolkit returns joy to beautiful and useful desktop application development. 😁
 
 ## Contents
 
