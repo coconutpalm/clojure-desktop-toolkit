@@ -10,14 +10,14 @@ This is what the Clojure Desktop Toolkit does.  Clojure Desktop Toolkit assists 
 
 When you have worked through the documentation, you should be able to read SWT code examples and Javadocs and immediately understand how to write the equivalent Clojure code.
 
-I hope this toolkit returns joy to writing desktop applications. 😁
+I hope this toolkit returns joy to creating beautiful and useful desktop applications. 😁
 
 ## Contents
 
 Getting started
 
 * Install Java, Clojure, Visual Studio Code, and Calva
-* [A minimal/starter Clojure Desktop Toolkit application](../examples/starter)
+* [A minimal/starter Clojure Desktop Toolkit application](../examples/starter) (You should really read the tutorial below first, but LOL.)
 
 Tutorial
 
