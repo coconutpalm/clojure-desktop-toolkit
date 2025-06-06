@@ -7,15 +7,13 @@
    [org.eclipse.swt.layout FillLayout]))
 
 (defn hello
-  "Hello, world."
+  "Display the main application user interface."
   [& _args]
   (application
-   (shell
-    "Hello, world"
+   (shell "Hello, world"
+          :layout (FillLayout.)
 
-    :layout (FillLayout.)
-
-    (label SWT/WRAP "Hello, world is the traditional message used to demonstrate a new language or user interface toolkit."))))
+          (label SWT/WRAP "Hello, world is the traditional message used to demonstrate a new language or user interface toolkit."))))
 
 
 
