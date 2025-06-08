@@ -17,7 +17,7 @@ I hope this toolkit returns joy to beautiful and useful desktop application deve
 Getting started
 
 * Install Java, Clojure, Visual Studio Code, and Calva
-* [A minimal/starter Clojure Desktop Toolkit application](../examples/starter) (You should really read the tutorial below first, but LOL.)
+* [A minimal/starter Clojure Desktop Toolkit application that builds an executable Uberjar](../examples/starter) (You should really read the tutorial below first, but LOL.)
 
 Tutorial
 
