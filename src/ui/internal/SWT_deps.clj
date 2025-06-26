@@ -6,13 +6,22 @@
 
 
 (def platform-lib-suffix
-  (let [suffixes {"lin" 'gtk.linux.x86_64
-                  "mac" 'cocoa.macosx.x86_64
-                  "win" 'win32.win32.x86_64}
+  (let [suffixes {"lin" {"x86_64" 'gtk.linux.x86_64
+                         "amd64" 'gtk.linux.x86_64
+                         "aarch64" 'gtk.linux.aarch64
+                         "amd" 'gtk.linux.aarch64}
+                  "mac" {"x86_64" 'cocoa.macosx.x86_64
+                         "aarch64" 'cocoa.macosx.aarch64
+                         "arm64" 'cocoa.macosx.aarch64}
+                  "win" {"x86_64" 'win32.win32.x86_64
+                         "ia64" 'win32.win32.x86_64
+                         "amd64" 'win32.win32.x86_64}}
+        arch (System/getProperty "os.arch")
         os-code (-> (System/getProperty "os.name")
-                   (.substring 0 3)
-                   (.toLowerCase))]
-    (str (get suffixes os-code "-unsupported-"))))
+                    (.substring 0 3)
+                    (.toLowerCase))]
+    (-> (get suffixes os-code "-unexpected os-code-")
+        (get arch "-unsupported-"))))
 
 (defn ->platform-lib
   "Returns the full library dependency given a qualified group/archive symbol"
