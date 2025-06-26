@@ -6,7 +6,7 @@ Start here. 😁
 
 The Eclipse SWT (Standard Widget Toolkit) library, on which the Clojure Desktop Toolkit is based, rigorously adheres to a set of standard naming and usage conventions.  As a result, it is possible to mechanically generate a Clojure API for SWT using Java reflection and Clojure macros at compile time.
 
-This is what the Clojure Desktop Toolkit does.  Clojure Desktop Toolkit assists with mapping Clojure idioms to Java data types, but there is no magic in the API mapping.  There are no new abstractions to learn.
+This is what the Clojure Desktop Toolkit does.  Clojure Desktop Toolkit maps Clojure idioms to Java data types, but there is no magic in the API mapping.  There are no new abstractions to learn.
 
 When you have worked through the documentation, you should be able to read SWT code examples and Javadocs and immediately understand how to write the equivalent Clojure code.
 
@@ -17,7 +17,7 @@ I hope this toolkit returns joy to beautiful and useful desktop application deve
 Getting started
 
 * Install Java, Clojure, Visual Studio Code, and Calva
-* [A minimal/starter Clojure Desktop Toolkit application](../examples/starter) (You should really read the tutorial below first, but LOL.)
+* [A minimal/starter Clojure Desktop Toolkit application that builds an executable Uberjar](../examples/starter) (You should really read the tutorial below first, but LOL.)
 
 Tutorial
 
