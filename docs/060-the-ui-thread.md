@@ -8,7 +8,7 @@ Let's examine how Clojure Desktop Toolkit interfaces with this reality.
 
 Here are the rules to keep in mind:
 
-1. In SWT, the thread that creates the Display object becomes the user interface thread.  Attempting to access SWT APIs from any other thread will throw an exception.  In Clojure Desktop Toolkit, this is the thread that invokes the `application` function.
+1. In SWT, the thread that creates the Display object becomes the user interface thread.  Attempting to access SWT APIs from any other thread will throw an exception.  In Clojure Desktop Toolkit, this is the thread that invokes the `application` function.  This thread _must_ be a dedicated platform thread - you cannot run the SWT UI thread on a JVM virtual thread.
 
 2. Any thread can learn if it is the user interface thread using the `ui-thread?` function.
 
