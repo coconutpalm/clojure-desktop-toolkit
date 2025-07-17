@@ -10,7 +10,7 @@
     <url>https://github.com/coconutpalm/clojure-desktop-toolkit</url>
     <connection>scm:git:git://github.com/coconutpalm/clojure-desktop-toolkit.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/coconutpalm/clojure-desktop-toolkit.git</developerConnection>
-    <tag>v0.3.2</tag>
+    <tag>v0.3.3</tag>
   </scm>
   <dependencies>
     <dependency>
