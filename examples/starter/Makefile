@@ -10,6 +10,7 @@ ALL: uber
 
 clean:
 	clj -T:build clean
+	rm -fr ~/.swt     # not normally needed, but older versions of CDT unpacked the wrong native libraries on MacOS
 
 uber: clean
 	clj -T:build uber
@@ -18,6 +19,6 @@ run:
 	clojure -M -m starter.main
 
 run-uber: uber
-	# java -jar -XstartOnFirstThread target/your-app*.jar  # MacOS
-	java -jar target/your-app*.jar  # Everybody else
+	java -jar -XstartOnFirstThread target/your-app*.jar  # MacOS
+	# java -jar target/your-app*.jar  # Everybody else
 
