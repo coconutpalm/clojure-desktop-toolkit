@@ -1,9 +1,17 @@
 (ns ui.internal.SWT-deps
-  "Dynamically resolve/load SWT subsystem dependencies when this namespace is required"
+  "Dynamically resolve/load SWT subsystem dependencies when this namespace is required.
+
+   If you package SWT yourself, use a Maven repository directory layout and modify
+   the dynamic `ui.repositories/*repositories*` map to point to your repository (as a
+   file URL) instead of the default ones.
+
+   Alternatively, ensure the correct SWT is already on the classpath at launch.
+   Then this code will automatically detect it and won't try to dynamically resolve SWT."
   (:require
    [clojure.java.io :as io]
+   [cemerick.pomegranate :as pom]
+   [ui.repositories :refer [*repositories*]]
    [clojure.repl.deps :refer [add-libs]]))
-
 
 (def platform-lib-suffix
   (let [suffixes {"lin" {"x86_64" 'gtk.linux.x86_64
@@ -37,15 +45,19 @@
 
 ;; SWT and dependencies ------------------------------------------------------------
 
-(def ^:dynamic *swt-version* "4.35")
+(def ^{:dynamic true
+       :doc "Which version of SWT to load."}
+  *swt-version* "4.35")
 
-(def swt-libs {(->platform-lib 'org.eclipse.swt/org.eclipse.swt) {:mvn/version *swt-version*}})
+(def swt-libs-deps {(->platform-lib 'org.eclipse.swt/org.eclipse.swt) {:mvn/version *swt-version*}})
+(def swt-libs-maven [(->platform-lib 'org.eclipse.swt/org.eclipse.swt) *swt-version*])
 
 (defonce
   ^{:doc "Result of loading SWT subsystem dependencies."}
   swt-libs-loaded? (try (import '[org.eclipse.swt SWT])
                         (catch ClassNotFoundException _e
-                          (add-libs swt-libs))))
+                          (pom/add-dependencies :coordinates [swt-libs-maven]
+                                                :repositories *repositories*  ))))
 
 ;; Chromium and dependencies --------------------------------------------------------
 
