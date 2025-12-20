@@ -1,15 +1,8 @@
 # ![Logo](../images/icon32x32.png) Version 0.4.0 New and Noteworthy
 
-Feature wish list
+* The SWT dependency is now resolved through Pomegranate so we can specify custom repositories.
+* More documentation on packaging applications.
 
-* Complete / opinionated build examples
-* Better layout management support
-* Databinding and Missionary
-* More widgets (Nebula, plus my own custom widgets)
+* Updated example [minimal/starter application](../../examples/starter/)
 
-Coding support:
-
-* SWTDoc UI?
-* Custom functions for browsing Clojure data?
-* Codemirror 6 editor with UI editing assistance and UI preview pane?
-
+[Prior N&N](version-0.3.1.md)
