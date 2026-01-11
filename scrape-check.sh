@@ -38,12 +38,12 @@ curl -L $MIRROR > index.html
 #R is ignored because its for releases
 RELEASES=$( cat index.html | grep -E -o "$DROPS_DIR/[a-zA-Z0-9\.-]+" | grep -E "^$DROPS_DIR/[SRM]-" | sort | uniq )
 
-#build list of paths that contain 
+#build list of paths that contain
 NEW_RELEASES=()
 for curReleasePath in $RELEASES; do
-	curReleaseVersion=$( echo $curReleasePath | cut -d'/' -f2 | cut -d'-' -f2 )	
+	curReleaseVersion=$( echo $curReleasePath | cut -d'/' -f2 | cut -d'-' -f2 )
 	echo "Found version $curReleaseVersion at $curReleasePath"
-	
+
 	#temporary workaround as 3.x releases aren't yet in the repo
 	if [[ "$curReleaseVersion" == 3* ]]; then
 		echo "Skipping release $curReleaseVersion"
