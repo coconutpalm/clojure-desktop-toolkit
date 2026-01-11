@@ -22,6 +22,7 @@
   (b/uber {:class-dir class-dir
            :uber-file uber-file
            :basis @basis
+           ;:exclude [#"^META-INF.*" #".SF$" #".DSA$" #".RSA$" #".sf$" #".dsa$" #".rsa$"]
            :manifest {"SplashScreen-Image" "loading.gif"}
            :main 'starter.main}))
 
