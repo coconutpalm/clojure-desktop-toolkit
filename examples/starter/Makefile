@@ -19,6 +19,6 @@ run:
 	clojure -M -m starter.main
 
 run-uber: uber
-	java -jar -XstartOnFirstThread target/your-app*.jar  # MacOS
-	# java -jar target/your-app*.jar  # Everybody else
+	# java -jar -XstartOnFirstThread target/your-app*.jar  # MacOS
+	java -jar target/your-app*.jar  # Everybody else
 
