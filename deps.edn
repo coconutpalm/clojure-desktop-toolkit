@@ -1,4 +1,4 @@
-{:paths ["src"]
+{:paths ["src" "resources"]
 
  :mvn/repos {"clojure-desktop-toolkit"
              {:url "https://coconutpalm.github.io/clojure-desktop-toolkit/maven"}}
@@ -11,7 +11,7 @@
 ;        org.eclipse.platform/org.eclipse.jface.databinding {:mvn/version "1.15.300"}
         com.hyperfiddle/rcf {:mvn/version "20220926-202227"}}
 
- :aliases {:dev {:paths ["src" "dev" "examples"]}
+ :aliases {:dev {:paths ["src" "resources" "dev" "examples"]}
 
            :jar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.0.211"}}
                  :exec-fn hf.depstar/jar

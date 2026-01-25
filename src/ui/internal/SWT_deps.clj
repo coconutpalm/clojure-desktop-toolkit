@@ -9,11 +9,14 @@
    Then this code will automatically detect it and won't try to dynamically resolve SWT."
   (:require
    [clojure.java.io :as io]
+   [babashka.fs :as fs]
    [cemerick.pomegranate :as pom]
    [ui.repositories :refer [*repositories*]]
-   [clojure.repl.deps :refer [add-libs]]))
+   [clojure.repl.deps :refer [add-libs]])
+  (:import
+   [java.io File]))
 
-(def platform-lib-suffix
+#_(def platform-lib-suffix
   (let [suffixes {"lin" {"x86_64" 'gtk.linux.x86_64
                          "amd64" 'gtk.linux.x86_64
                          "aarch64" 'gtk.linux.aarch64
@@ -31,12 +34,38 @@
     (-> (get suffixes os-code "-unexpected os-code-")
         (get arch "-unsupported-"))))
 
-(defn ->platform-lib
+
+(def ^{:dynamic true
+       :doc "The prefix to use for the SWT platform-native zip filename resource."}
+  *platform-zip-prefix* "swt-4.38")
+
+(def platform-zip-suffix
+  (let [suffixes {"lin" {"x86_64" 'gtk-linux-x86_64
+                         "amd64" 'gtk-linux-x86_64
+                         "aarch64" 'gtk-linux-aarch64
+                         "amd" 'gtk-linux-aarch64}
+                  "mac" {"x86_64" 'cocoa-macosx-x86_64
+                         "aarch64" 'cocoa-macosx-aarch64
+                         "arm64" 'cocoa-macosx-aarch64}
+                  "win" {"x86_64" 'win32-win32-x86_64
+                         "ia64" 'win32-win32-x86_64
+                         "amd64" 'win32-win32-x86_64}}
+        arch (System/getProperty "os.arch")
+        os-code (-> (System/getProperty "os.name")
+                    (.substring 0 3)
+                    (.toLowerCase))]
+    (-> (get suffixes os-code "-unexpected os-code-")
+        (get arch "-unsupported-"))))
+
+(defn platform-zip []
+  (str *platform-zip-prefix* "-" platform-zip-suffix ".zip"))
+
+#_(defn ->platform-lib
   "Returns the full library dependency given a qualified group/archive symbol"
   [ga-symbol]
   (symbol (namespace ga-symbol) (str (name ga-symbol) "." platform-lib-suffix)))
 
-(defn ->platform-resource-jar
+#_(defn ->platform-resource-jar
   "Returns the full library dependency given a qualified group/archive symbol"
   [ga-symbol version]
   (io/resource
@@ -45,19 +74,28 @@
 
 ;; SWT and dependencies ------------------------------------------------------------
 
-(def ^{:dynamic true
-       :doc "Which version of SWT to load."}
-  *swt-version* "4.35")
+(defn swt-platform
+  []
+  (let [tmpdir (File. (str (fs/create-temp-dir)))]
+    (.deleteOnExit tmpdir)
+    (fs/unzip (-> (platform-zip) io/resource io/input-stream) tmpdir)
+    {:dir tmpdir :jar (File. tmpdir "swt.jar") :src (File. tmpdir "src.zip")}))
 
-(def swt-libs-deps {(->platform-lib 'org.eclipse.swt/org.eclipse.swt) {:mvn/version *swt-version*}})
-(def swt-libs-maven [(->platform-lib 'org.eclipse.swt/org.eclipse.swt) *swt-version*])
+(defonce swt (swt-platform))
+
+(defn load-swt-libs
+  []
+  (pom/add-classpath (:jar swt))
+  (when (.exists (:src swt))
+    (pom/add-classpath (:src swt))))
+
 
 (defonce
   ^{:doc "Result of loading SWT subsystem dependencies."}
   swt-libs-loaded? (try (import '[org.eclipse.swt SWT])
                         (catch ClassNotFoundException _e
-                          (pom/add-dependencies :coordinates [swt-libs-maven]
-                                                :repositories *repositories*  ))))
+                          (load-swt-libs)
+                          (import '[org.eclipse.swt SWT]))))
 
 ;; Chromium and dependencies --------------------------------------------------------
 
