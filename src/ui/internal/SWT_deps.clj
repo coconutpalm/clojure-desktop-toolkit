@@ -16,7 +16,7 @@
   (:import
    [java.io File]))
 
-#_(def platform-lib-suffix
+(def platform-lib-suffix
   (let [suffixes {"lin" {"x86_64" 'gtk.linux.x86_64
                          "amd64" 'gtk.linux.x86_64
                          "aarch64" 'gtk.linux.aarch64
@@ -39,6 +39,7 @@
        :doc "The prefix to use for the SWT platform-native zip filename resource."}
   *platform-zip-prefix* "swt-4.38")
 
+;; NOTE: The difference is hyphens instead of dots.
 (def platform-zip-suffix
   (let [suffixes {"lin" {"x86_64" 'gtk-linux-x86_64
                          "amd64" 'gtk-linux-x86_64
@@ -60,7 +61,7 @@
 (defn platform-zip []
   (str *platform-zip-prefix* "-" platform-zip-suffix ".zip"))
 
-#_(defn ->platform-lib
+(defn ->platform-lib
   "Returns the full library dependency given a qualified group/archive symbol"
   [ga-symbol]
   (symbol (namespace ga-symbol) (str (name ga-symbol) "." platform-lib-suffix)))
