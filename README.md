@@ -6,14 +6,12 @@
 
 [![Clojars Project](https://img.shields.io/clojars/v/io.github.coconutpalm/clojure-desktop-toolkit.svg)](https://clojars.org/io.github.coconutpalm/clojure-desktop-toolkit)
 
-* **[New and Noteworthy](docs/new-and-noteworthy/version-0.4.4.md)**
+* **[New and Noteworthy](docs/new-and-noteworthy/version-0.4.4.md)** - We package SWT libraries inside your Uberjar and automatically select the right one!  More!
 * **[Current documentation](docs/000-index.md)**
 
 Web applications used to be simpler and easier to build than desktop graphical applications.  With the expectations of modern CSS and Javascript, this is no longer the case.  Modern web applications are beautiful, but they are expensive.
 
 Sometimes a small, fast, lightweight desktop application is just the right thing.  Clojure Desktop Toolkit makes it easy to create fast, native, cross-platform user interfaces based on Eclipse's SWT libraray.
-
-**NOTE:** As-of version 0.4.4, we no longer mirror SWT as a Maven repository.  Instead, we include the platform libraries for Linux, Mac, and Windows directly inside the Jar and automatically load the right one from your Uberjar.  See the [New and Noteworthy](docs/new-and-noteworthy/version-0.4.4.md) for details.
 
 ## Sponsorship
 
