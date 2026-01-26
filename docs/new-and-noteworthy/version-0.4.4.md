@@ -29,7 +29,7 @@ the locally-hosted Maven repository
 
 * Updated example [minimal/starter application](../../examples/starter/)
 
-It still works with the new SWT platform autodetector; it shows how to build and deploy your
+It still works with the SWT platform autodetector; it shows how to build and deploy your
 own cross-platform SWT application using Clojure.
 
 [Prior N&N](version-0.4.0.md)
