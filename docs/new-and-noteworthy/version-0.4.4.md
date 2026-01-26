@@ -1,6 +1,8 @@
 # ![Logo](../images/icon32x32.png) Version 0.4.4 New and Noteworthy
 
-# Automatic Platform-specific library resolution upgrade!
+# Automatic Platform-specific library resolution!
+
+We've upgraded the way we do this!
 
 * Resolving SWT no longer depends on network connectivity!
 * SWT platform libraries for Windows, Mac, and Linux are now included inside the Jar.
