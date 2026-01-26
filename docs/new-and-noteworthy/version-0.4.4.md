@@ -1,6 +1,6 @@
 # ![Logo](../images/icon32x32.png) Version 0.4.4 New and Noteworthy
 
-# Automatic Platform-specific library resolution!
+# Automatic Platform-specific library resolution
 
 We've upgraded the way we do this!
 
