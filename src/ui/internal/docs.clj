@@ -4,7 +4,6 @@
   (:require [ui.internal.reflectivity :as meta]
             [righttypes.conversions :refer :all]))
 
-
 (def ^:private eclipse-help-url-prefix
   "https://help.eclipse.org/latest/index.jsp?topic=%2Forg.eclipse.platform.doc.isv%2Freference%2Fapi%2F")
 
@@ -18,23 +17,25 @@
                                  ".html")
     :else                   (throw (IllegalArgumentException. (str "Invalid class name: " clazz)))))
 
-
 (defn- doc-for-node [node]
   (cond
-    (class? node) {:class node
-                   :fields (meta/fields node)
-                   :properties (meta/setters node)
-                   :methods (meta/non-prop-methods node)
-                   :eclipsedoc (eclipsedoc-url node)}
+    (class? node) (let [base {:class node
+                              :fields (meta/fields node)
+                              :properties (meta/setters node)
+                              :methods (meta/non-prop-methods node)
+                              :eclipsedoc (eclipsedoc-url node)}
+                        children (seq (meta/valid-children-of node))
+                        parents (seq (meta/valid-parents-of node))]
+                    (cond-> base
+                      children (assoc :valid-children children)
+                      parents  (assoc :valid-parents parents)))
     (and (map? node)
          (not (empty? node))
          (keyword? (first (first node)))) {:subtopics (sort (keys node))}
     (var? node) (or (:doc (meta node)) node)
     :else node))
 
-
 (defn- name-str [x] (name (convert clojure.lang.Named x)))
-
 
 (defn- traverse [current-doc topic]
   (cond
@@ -43,7 +44,6 @@
                                 (second (first (filter (fn [x] (>= (.indexOf (name-str (first x)) (name-str topic)) 0)) current-doc)))
                                 (first (filter (fn [x] (>= (.indexOf (name-str x) (name-str topic)) 0)) current-doc)))
     :else nil))
-
 
 (defn swtdoc* [breadcrumb current-doc query]
   (if-let [topic (first query)]

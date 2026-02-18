@@ -67,14 +67,13 @@ swt-libs-loaded?
        (sort)))
 
 (def listener-methods (doall
-                    (->> swt-listeners
-                         (map (fn [[c ms]] [c (methods->event-names ms)]))
-                         (sort-by #(.getName (first %)))
-                         (into {}))))
+                       (->> swt-listeners
+                            (map (fn [[c ms]] [c (methods->event-names ms)]))
+                            (sort-by #(.getName (first %)))
+                            (into {}))))
 
 (def swt-event-methods (methods->event-names
                         (mapcat (fn [[_ events]] events) swt-listeners)))
-
 
 ;; TODO: Generate docstring for swt-events
 (def widget-to-listener-methods
@@ -98,7 +97,6 @@ swt-libs-loaded?
   [widget-class method-name]
   (get-in widget-to-listener-methods [widget-class method-name]))
 
-
 (defn event-method->possible-listeners
   "Finds possible listeners (in swt-listeners) corresponding to `event-method` (in camelCase, e.g.'modifyText')"
   [^String event-method]
@@ -106,7 +104,6 @@ swt-libs-loaded?
    (fn [[_ methods]]
      (some #(= event-method (.getName %)) methods))
    swt-listeners))
-
 
 (defn matching-listener
   "A given add method may be defined on more than a single listener class.  This function searches
@@ -119,7 +116,6 @@ swt-libs-loaded?
   [event-method-name]
   (->> (event-method->possible-listeners event-method-name)  ;; seq of [listener-class methods]
        (map (fn [[listener-class _]] (str "add" (.getSimpleName listener-class))))))
-
 
 (comment "e.g.: Look up the info we need to create a listener for modifyText"
          (event-method->possible-listeners "modifyText")
@@ -138,7 +134,6 @@ swt-libs-loaded?
 
          :eoc)
 
-
 (defn types-in-package
   "Returns a seq of Class objects for all classes in the given package."
   [package]
@@ -156,7 +151,6 @@ swt-libs-loaded?
   (types-in-package (str "org.eclipse.swt." swt-package)))
 
 (def ^:private swt-layoutdata (types-in-swt-package "layout"))
-
 
 ;; =====================================================================================
 ;; Generate online docs from class metadata
@@ -179,6 +173,54 @@ swt-libs-loaded?
             (-> (.getSimpleName clazz) ->kebab-case))]
     (sort-by first (map (fn [c] [(fn-name<- c) c]) classes))))
 
+;; =====================================================================================
+;; Parent-child relationship discovery via constructor reflection
+
+(def widget-constructor-parent-types
+  "Map: widget-class → set of types accepted as parent by any public constructor.
+   Derived by inspecting each constructor's first parameter type."
+  (->> (concat swt-composites swt-widgets swt-items)
+       (map (fn [^Class clazz]
+              [clazz (->> (.getConstructors clazz)
+                          (filter #(>= (alength (.getParameterTypes %)) 2))
+                          (map #(aget (.getParameterTypes %) 0))
+                          (filter #(or (.isAssignableFrom Widget %)
+                                       (= org.eclipse.swt.widgets.Display %)))
+                          set)]))
+       (filter #(seq (second %)))
+       (into {})))
+
+(defn- custom-control?
+  "Returns true if `clazz` is a custom SWT control — class name starts with 'C'
+   followed by an uppercase letter (e.g. CTabFolder, CCombo, CBanner)."
+  [^Class clazz]
+  (let [name (.getSimpleName clazz)]
+    (and (>= (.length name) 2)
+         (= \C (.charAt name 0))
+         (Character/isUpperCase (.charAt name 1)))))
+
+(defn valid-children-of
+  "Returns `[[kebab-name class] ...]` of widget classes whose constructors accept
+   `parent-class` (or a supertype of it) as the first parameter."
+  [^Class parent-class]
+  (->> widget-constructor-parent-types
+       (filter (fn [[_ parent-types]]
+                 (some #(.isAssignableFrom % parent-class) parent-types)))
+       (map first)
+       (fn-names<-)))
+
+(defn valid-parents-of
+  "Returns `[[kebab-name class] ...]` of concrete widget classes that `child-class`
+   can be constructed inside.  Custom controls (CTabFolder, CCombo, etc.) are only
+   included when the child's constructor explicitly names them as a parameter type."
+  [^Class child-class]
+  (let [declared-parent-types (get widget-constructor-parent-types child-class)]
+    (->> (concat swt-composites swt-widgets swt-items)
+         (filter (fn [candidate]
+                   (and (some #(.isAssignableFrom % candidate) declared-parent-types)
+                        (or (not (custom-control? candidate))
+                            (contains? declared-parent-types candidate)))))
+         (fn-names<-))))
 
 (defn- extract-java-meta [xs]
   (->> xs
@@ -191,7 +233,6 @@ swt-libs-loaded?
                      {:type (if (instance? Field x) (.getType x) (.getReturnType x))
                       :declaring-class (.getDeclaringClass x)}]))
        (sort-by first)))
-
 
 (defn fields [^Class clazz]
   (->> (.getFields clazz)

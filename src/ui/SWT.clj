@@ -51,7 +51,6 @@
      (fn [gc#]
        (doto gc# ~@forms))))
 
-
 ;; =====================================================================================
 ;; Aaaaaand, here's the API!
 ;; =====================================================================================
@@ -59,7 +58,6 @@
 (i/define-inits meta/swt-composites)
 (i/define-inits meta/swt-widgets)
 (i/define-inits meta/swt-items)
-
 
 ;; =====================================================================================
 ;; Props manipulation
@@ -71,7 +69,6 @@
   [[props parent] & forms]
   `(fn [~props ~parent] ~@forms))
 
-
 (defmacro defmain
   "Defines an init function node in a user interface tree.  By convention, this is used after the
    entire user interface is constructed to bind data into the user interface elements.
@@ -81,7 +78,6 @@
    Syntactic sugar for (initfn (fn [props parent] forms))"
   [[props parent] & forms]
   `(fn [~props ~parent] ~@forms))
-
 
 (defn id!
   "Init function factory that names `parent` control using `kw` inside the props.
@@ -167,7 +163,6 @@
 
           tray-item)))))
 
-
 (defn shell
   "Define an org.eclipse.swt.widgets.Shell and open it.  Accepts additional init functions to
    execute against the new Shell.  Doesn't run an event loop against the new Shell."
@@ -185,7 +180,6 @@
         (.open sh)
         sh))))
 
-
 (defn root-props
   "Return the props atom associated with each non-disposed shell."
   []
@@ -200,7 +194,6 @@
     (fn [props parent]
       (i/run-inits props parent inits))))
 
-
 (defmacro widget
   "Construct a widget given its Java Class object, its style bits and optional init functions.
    The purpose is to support arbitrary SWT customn widgets that follow SWT's naming conventions
@@ -213,11 +206,24 @@
        (doall (map (fn [initfn#] (initfn# props# child#)) [~@initfns]))
        child#)))
 
-
 ;; =====================================================================================
 ;; Specialized online docs
 
 (require '[ui.gridlayout :as layout])
+
+(defn valid-children
+  "Returns `[[kebab-name class] ...]` of widget types that can legally be children of
+   `parent` (a Class or widget instance)."
+  [parent]
+  (let [clazz (if (class? parent) parent (class parent))]
+    (meta/valid-children-of clazz)))
+
+(defn valid-parents
+  "Returns `[[kebab-name class] ...]` of concrete widget classes that `child`
+   can be constructed inside (a Class or widget instance)."
+  [child]
+  (let [clazz (if (class? child) child (class child))]
+    (meta/valid-parents-of clazz)))
 
 (def ^:private documentation
   {:package {:ui.SWT (meta/sorted-publics 'ui.SWT)
@@ -236,7 +242,6 @@
   "Print documentation on the SWT library support."
   [& query]
   (docs/swtdoc* [] documentation query))
-
 
 ;; =====================================================================================
 ;; A wrapped nullary function that captures its result or thrown exception in the
@@ -264,7 +269,6 @@
   [f]
   (RunnableFn. f (atom nil) (atom nil)))
 
-
 ;; =====================================================================================
 ;; Event processing must happen on the UI thread.  Some helpers...
 
@@ -277,7 +281,6 @@
      (= t ui-thread)))
   ([]
    (ui-thread? (Thread/currentThread))))
-
 
 (defn with-ui*
   "Implementation detail: Use `sync-exec!` or `ui` instead.  Public because it's called
@@ -300,7 +303,6 @@
   (cond
     (coll? (first more)) `(with-ui* (fn [] ~@more))
     :else                `(with-ui* (fn [] (~@more)))))
-
 
 (defn sync-exec!
   "Synonym for `Display.getDefault().syncExec( () -> f() );` except that the result of executing
@@ -340,7 +342,6 @@
   ([display]
    (while (.readAndDispatch display))))
 
-
 ;; =====================================================================================
 ;; The main application and her children
 
@@ -354,7 +355,6 @@
 
   ([[parent props] child-init-fn]
    (child-of parent props child-init-fn)))
-
 
 (defn application
   "The application creates/hosts the display object and runs the UI event loop until all SWT `Shell` (window) objects
@@ -398,7 +398,6 @@
   (ui (.dispose @display))
   (reset! display nil))
 
-
 ;; =====================================================================================
 ;; Event handling
 
@@ -416,7 +415,6 @@
         add-listener (symbol (str ".add" (.getSimpleName listener)))]
     `(fn [parent#] (~add-listener parent# (reify ~l ~@ms)))))
 
-
 (comment
   (let [event-method "modifyText"]
     (->> (meta/event-method->possible-listeners event-method)
@@ -428,7 +426,6 @@
          (map (fn [[l methods]] [l (reify-listener l methods event-method)]))))
 
   :eoc)
-
 
 (defmacro on
   "Register an event handler for the specified `event-name`, `handler-parameters`, and `body`.
@@ -480,7 +477,6 @@
 
   :eoc)
 
-
 (comment
 
   {:display @display}
@@ -488,5 +484,9 @@
   (ui
    (root-props))
 
-  :eoc
-  )
+  (valid-children org.eclipse.swt.widgets.Tree)
+  (valid-parents org.eclipse.swt.widgets.Tree)
+  (valid-parents org.eclipse.swt.widgets.Group)
+  (swtdoc :swt :composites "group")
+
+  :rcf)
