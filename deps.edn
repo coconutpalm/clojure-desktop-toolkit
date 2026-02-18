@@ -13,6 +13,12 @@
 
  :aliases {:dev {:paths ["src" "resources" "dev" "examples"]}
 
+           :mcp {:extra-deps {org.hugoduncan/mcp-clj
+                              {:git/url   "https://github.com/hugoduncan/mcp-clj"
+                               :git/sha   "08ec63baeed813bc09673e61c20df8884961c11a"
+                               :deps/root "projects/server"}}
+                 :main-opts ["-m" "mcp-clj.stdio-server.main"]}
+
            :jar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.0.211"}}
                  :exec-fn hf.depstar/jar
                  :exec-args {:jar "clojure-desktop-toolkit.jar" :sync-pom true}}
