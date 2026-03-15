@@ -4,13 +4,13 @@
   <packaging>jar</packaging>
   <groupId>io.github.coconutpalm</groupId>
   <artifactId>clojure-desktop-toolkit</artifactId>
-  <version>0.4.4</version>
+  <version>0.5.0</version>
   <name>clojure-desktop-toolkit</name>
   <scm>
     <url>https://github.com/coconutpalm/clojure-desktop-toolkit</url>
     <connection>scm:git:git://github.com/coconutpalm/clojure-desktop-toolkit.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/coconutpalm/clojure-desktop-toolkit.git</developerConnection>
-    <tag>v0.4.4</tag>
+    <tag>v0.5.0</tag>
   </scm>
   <dependencies>
     <dependency>
