@@ -31,7 +31,7 @@
 
       (menu SWT/POP_UP (id! :ui/tray-menu)
             (menu-item SWT/PUSH "&Quit"
-                       (on e/widget-selected [parent props event] (swap! props assoc :closing true)
+                       (on e/widget-selected [props parent event] (swap! props assoc :closing true)
                            (.close (:ui/shell @props))))))))
 
 (comment
