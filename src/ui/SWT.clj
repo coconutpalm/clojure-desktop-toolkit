@@ -163,8 +163,8 @@
 
           tray-item)))))
 
-(defn shell
-  "Define an org.eclipse.swt.widgets.Shell and open it.  Accepts additional init functions to
+(defn shell-invisible
+  "Define an org.eclipse.swt.widgets.Shell, but don't open it.  Accepts additional init functions to
    execute against the new Shell.  Doesn't run an event loop against the new Shell."
   [& inits]
   (let [[style
@@ -176,9 +176,17 @@
         init    (i/widget* Shell style (or inits []))]
 
     (fn [props disp]
-      (let [sh (init props disp)]
-        (.open sh)
-        sh))))
+      (init props disp))))
+
+(defn shell
+  "Define an org.eclipse.swt.widgets.Shell and open it.  Accepts additional init functions to
+   execute against the new Shell.  Doesn't run an event loop against the new Shell."
+  [& inits]
+  (fn [props disp]
+    (let [build-shell! (apply shell-invisible inits)
+          sh (build-shell! props disp)]
+      (.open sh)
+      sh)))
 
 (defn root-props
   "Return the props atom associated with each non-disposed shell."
