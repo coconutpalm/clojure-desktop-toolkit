@@ -9,7 +9,7 @@
 ALL: jar deploy
 
 jar:
-	exec clojure -X:jar :version '"0.5.0"'
+	exec clojure -X:jar :version '"0.5.1"'
 
 deploy:
 	./deploy.sh
