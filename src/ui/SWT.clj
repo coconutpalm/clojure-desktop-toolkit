@@ -12,7 +12,7 @@
             [righttypes.nothing :refer [nothing something nothing->identity NO-RESULT-ERROR]])
   (:import [clojure.lang IFn]
            [org.eclipse.swt SWT]
-           [org.eclipse.swt.graphics GC Image]
+           [org.eclipse.swt.graphics GC Image ImageLoader]
            [org.eclipse.swt.layout FillLayout]
            [org.eclipse.swt.events TypedEvent]
            [org.eclipse.swt.widgets Display Shell TrayItem Listener Label]))
@@ -44,12 +44,42 @@
       (f gc)
       (finally (.dispose gc)))))
 
+(defn save-image!
+  "Save `image` as a PNG file at `path`."
+  [^Image image ^String path]
+  (let [loader (ImageLoader.)]
+    (set! (.data loader) (into-array [(. image getImageData)]))
+    (.save loader path SWT/IMAGE_PNG)))
+
 (defmacro doto-gc-on
   "Like with-gc-on, but executes `forms` inside a `doto` block on the `gc`."
   [drawable & forms]
   `(with-gc-on ~drawable
      (fn [gc#]
        (doto gc# ~@forms))))
+
+(defn screenshot-widget!
+  "Save a PNG screenshot of `widget` to `path`."
+  [widget ^String path]
+  (let [size  (.getSize widget)
+        image (Image. (.getDisplay widget) (.-x size) (.-y size))]
+    (try
+      (doto-gc-on widget
+                  (.copyArea image 0 0))
+      (save-image! image path)
+      (finally (.dispose image)))))
+
+(defn screenshot-display!
+  "Save a PNG screenshot of the entire display to `path`."
+  [^String path]
+  (let [disp  @display
+        rect  (.getBounds disp)
+        image (Image. disp (.-width rect) (.-height rect))]
+    (try
+      (doto-gc-on disp
+                  (.copyArea image 0 0))
+      (save-image! image path)
+      (finally (.dispose image)))))
 
 ;; =====================================================================================
 ;; Aaaaaand, here's the API!
@@ -129,39 +159,53 @@
   [& styles]
   (int (apply bit-or styles)))
 
+(defn- default-tray-image
+  [color]
+  (let [i (Image. (Display/getDefault) 16 16)]
+    (doto-gc-on i
+     (. setBackground (.getSystemColor display color))
+     (. fillRectangle (.getBounds i)))
+    i))
+
 (defn tray-item
   "Define a system tray item.  Must be a child of the application node.  The :image
   and :highlight-image should be 16x16 SWT Image objects.  `on-widget-selected` is
   fired on clicks and `on-menu-detected` to request the right-click menu be displayed."
-  [& inits]
-  (let [[style
-         inits] (i/extract-style-from-args inits)
-        style   (nothing->identity SWT/NULL style)]
-    (fn [props display]
-      (when-let [tray (.getSystemTray display)]
-        (let [tray-item (TrayItem. tray style)
-              image (Image. display 16 16)
-              highlight-image (Image. display 16 16)]
+  ([image highlight-image & inits]
+   (let [[style
+          inits] (i/extract-style-from-args inits)
+         style   (nothing->identity SWT/NULL style)]
+     (fn [props display]
+       (when-let [tray (.getSystemTray display)]
+         (let [tray-item (TrayItem. tray style)]
+           (doto tray-item
+             (. setImage (if image image (default-tray-image SWT/COLOR_DARK_BLUE)))
+             (. setHighlightImage (if highlight-image highlight-image (default-tray-image SWT/COLOR_BLUE))))
 
-          ;; Make some default/stub images
-          (doto-gc-on image
-                      (. setBackground (.getSystemColor display SWT/COLOR_DARK_BLUE))
-                      (. fillRectangle (.getBounds image)))
+           (i/run-inits props tray-item (or inits []))
 
-          (doto-gc-on highlight-image
-                      (. setBackground (.getSystemColor display SWT/COLOR_BLUE))
-                      (. fillRectangle (.getBounds image)))
+           (.addListener display SWT/Dispose (reify Listener
+                                               (handleEvent [_this _event] (.dispose tray-item))))
 
-          (doto tray-item
-            (. setImage image)
-            (. setHighlightImage highlight-image))
+           tray-item))))))
 
-          (i/run-inits props tray-item (or inits []))
+(defn macos-system-menu-handler!
+  "If we're on MacOS, register a system menu callback for the specified menu ID.
 
-          (.addListener display SWT/Dispose (reify Listener
-                                              (handleEvent [_this _event] (.dispose tray-item))))
-
-          tray-item)))))
+   Typically you'll want to hook SWT/ID_ABOUT, SWT/ID_PREFERENCES, and possibly SWT/ID_QUIT if you need
+   to perform orderly cleanup on shutdown."
+  [menu-item-id handler-fn]
+  (when-let [system-menu (.getSystemMenu (Display/getDefault))]
+    (doseq [i (.getItems system-menu)]
+      (when (= (.getId i) menu-item-id)
+        (.addListener i SWT/Selection
+                      (reify Listener
+                        (handleEvent [_ e]
+                          (try
+                            (set! (. e doit) false)
+                            (handler-fn)
+                            (catch Throwable t
+                              (comment "TODO: Need to log the error!"))))))))))
 
 (defn shell-invisible
   "Define an org.eclipse.swt.widgets.Shell, but don't open it.  Accepts additional init functions to
@@ -187,6 +231,27 @@
           sh (build-shell! props disp)]
       (.open sh)
       sh)))
+
+(defn process-events
+  [shell]
+  (let [d (.getDisplay shell)]
+    (while (and (not (.isDisposed d)) (.isDisposed shell)))
+    (when-not (.readAndDispatch d)
+      (.sleep d))))
+
+(declare child-of)
+
+(defn shell-modal
+  "Define a shell that functions as a modal dialog.  `parent` should be the parent shell.  After initialization,
+   opens the shell and blocks until the shell is disposed.  Passes a new props atom to the Shell; after the shell
+   is disposed, returns the shell's props atom."
+  [parent-shell & more-inits]
+  (let [dialog-props (atom {})
+        dialog (:child (child-of parent-shell dialog-props
+                                 (apply shell more-inits)))]
+
+    (process-events dialog)
+    dialog-props))
 
 (defn root-props
   "Return the props atom associated with each non-disposed shell."
@@ -363,6 +428,17 @@
 
   ([[parent props] child-init-fn]
    (child-of parent props child-init-fn)))
+
+(defn control
+  "Call `.setControl` on the `parent` widget with the widget named by `child-id` from the `props`.  Throws
+   if no child by the specified id exists in `props`."
+  [child-id]
+  (fn [props parent]
+    (if-let [widget (get @props child-id)]
+      (.setControl parent widget)
+      (throw (ex-info (str "control: " child-id " was not found in props."
+                           {:child-id child-id
+                            :props-keys (keys @props)}))))))
 
 (defn application
   "The application creates/hosts the display object and runs the UI event loop until all SWT `Shell` (window) objects
