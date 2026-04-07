@@ -23,7 +23,7 @@ This program:
 
 ```clojure
 (application
- (tray-item
+ (tray-item nil nil ; use default images
    (on e/menu-detected [props parent event] (.setVisible (:ui/tray-menu @props) true))  ; Right-click handler
    (on e/widget-selected [props parent event] (let [shell (:ui/shell @props)]           ; Left-click handler
                                                 (.setVisible shell (not (.isVisible shell))))))

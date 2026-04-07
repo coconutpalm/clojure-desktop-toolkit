@@ -10,7 +10,7 @@
     "An example application that minimizes the main window to the system tray when it's closed."
     []
     (application
-     (tray-item
+     (tray-item nil nil  ; use default image stubs
       ;; System tray right-click handler
       (on e/menu-detected [props parent event] (.setVisible (:ui/tray-menu @props) true))
 

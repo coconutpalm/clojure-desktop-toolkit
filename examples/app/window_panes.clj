@@ -18,6 +18,7 @@
   (application ; The application hosts the display object and runs the event loop
 
    (tray-item ; Define a system tray item so we can minimize to the tray
+    nil nil   ; use default images
     (on e/menu-detected [props parent event] (.setVisible (:ui/tray-menu @props) true))
     (on e/widget-selected [props parent event] (let [shell (:ui/shell @props)]
                                                  (.setVisible shell (not (.isVisible shell))))))
