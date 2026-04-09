@@ -40,6 +40,7 @@ After editing files, reload the namespace: `(require 'my.namespace :reload)`
 - **Flat structures**: Avoid deep nesting; use namespaced/synthetic keywords (`:foo/something`)
 - **Destructure in parameter lists**: `[{:user/keys [id name] :config/keys [timeout]}]`
 - **Avoid shadowing core fns**: Don't bind `map`, `name`, `type`, `count`, `set`, `str`, `get`, `filter`, `reduce`, `merge`, `update`, `key`, `first`, `rest`, `keyword`, `symbol`, `class`, `empty?`
+- **Use `str` not `.toString`**: `(str val)` is idiomatic Clojure; never call `(.toString val)`
 
 ### Alignment Rule
 

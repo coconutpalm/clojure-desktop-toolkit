@@ -95,20 +95,19 @@ Since all UI work must be on the UI thread, wrap calls in `(ui ...)`. The REPL t
 (ui (.dispose (:child test-result)))
 ```
 
-For shells containing multiple widgets, use `defchildren` inside `child-of` as usual:
+For shells containing multiple widgets, pass them as additional init functions — `shell` takes `& inits` and composes them directly, so `defchildren` is not needed:
 
 ```clojure
 (def test-result
   (ui (child-of (Display/getDefault) (atom {})
         (shell SWT/SHELL_TRIM "Test"
           (grid-layout :numColumns 2)
-          (defchildren
-            (label "Name:")
-            (text SWT/BORDER
-              (hgrab))
-            (label "Email:")
-            (text SWT/BORDER
-              (hgrab)))))))
+          (label "Name:")
+          (text SWT/BORDER
+            (hgrab))
+          (label "Email:")
+          (text SWT/BORDER
+            (hgrab))))))
 ```
 
 **macOS caveat**: This workflow only works on macOS if the running application itself embeds and exposes an nREPL server. A standalone REPL process cannot work because it cannot acquire the first thread — which macOS requires for all UI work — since the application already owns it.
@@ -557,18 +556,55 @@ Resolve the stack at startup by checking which fonts are actually installed on t
     :text "New Tab"))
 ```
 
-To add multiple widgets in one call, wrap them in `defchildren`, which bundles multiple init functions into a single init function:
+### `defchildren` — mounting multiple children into an existing composite
+
+`child-of` accepts exactly one init function, but real use cases often require mounting several widgets together into an already-existing parent composite. `defchildren` bundles multiple init functions into one, making this idiomatic. Use it whenever you need to add more than one widget via `child-of`.
+
+**Creating a `control`/`CTabItem` pair dynamically inside a `CTabFolder`** — the most common pattern. The content composite must be a sibling of the item, both added in the same `child-of` call so the `:ui/...` id is in props before `(control ...)` runs:
 
 ```clojure
-;; Adding a CTabItem and its content control to a CTabFolder at runtime
-(child-of tab-folder props
+;; Production code: open a new tab in response to a user action
+(defn open-tab! [props tab-folder title content-fn]
+  (child-of tab-folder props
+    (defchildren
+      (composite (id! :ui/new-tab-content)
+        (grid-layout)
+        (content-fn))
+      (c-tab-item
+        :text title
+        (control :ui/new-tab-content)))))
+```
+
+**Mounting toolbar buttons into a `CTabFolder`'s toolbar composite** — the toolbar composite already exists; `defchildren` mounts the buttons as a group:
+
+```clojure
+(child-of (:ui/tab-toolbar @props) props
   (defchildren
-    (composite (id! :ui/new-tab-content)
+    (button SWT/PUSH "+"
+      (on e/widget-selected [props parent event]
+        (async-exec! #(open-tab! props ...))))
+    (button SWT/PUSH "⚙"
+      (on e/widget-selected [props parent event]
+        (async-exec! #(open-settings! props))))))
+```
+
+**REPL testing** — same pattern; `defchildren` lets you mount a realistic group of children into a temporary test composite:
+
+```clojure
+(def test-result
+  (ui (child-of (Display/getDefault) (atom {})
+        (shell SWT/SHELL_TRIM "Test"
+          (let [folder (c-tab-folder SWT/BORDER (id! :ui/folder))])))))
+
+;; Mount a tab pair into the already-constructed folder
+(child-of (:ui/folder @(:props test-result)) (:props test-result)
+  (defchildren
+    (composite (id! :ui/tab-content)
       (grid-layout)
-      (label "Content here"))
+      (label "Hello"))
     (c-tab-item
-      :text "New Tab"
-      (control :ui/new-tab-content))))
+      :text "Tab 1"
+      (control :ui/tab-content))))
 ```
 
 `child-of` also accepts a `[parent props]` vector as its first argument, which allows chaining:
