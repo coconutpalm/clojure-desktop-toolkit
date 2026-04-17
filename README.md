@@ -5,6 +5,7 @@
 > ***Returning joy to desktop application development!*** 😁
 
 [![Clojars Project](https://img.shields.io/clojars/v/io.github.coconutpalm/clojure-desktop-toolkit.svg)](https://clojars.org/io.github.coconutpalm/clojure-desktop-toolkit)
+[![Hypercommit](https://img.shields.io/badge/Hypercommit-DB2475)](https://hypercommit.com/clojure-desktop-toolkit)
 
 * **[New and Noteworthy](docs/new-and-noteworthy/version-0.4.4.md)** - We package SWT libraries inside your Uberjar and automatically select the right one!  More!
 * **[Current documentation](docs/000-index.md)** or see below for a brief synopsis.
