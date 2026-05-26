@@ -716,26 +716,103 @@ JAR contains the compiled Java class. Verification step 10.
 
 ### Step 11. Documentation
 
-Update:
-- `README.md`: add a "Using Nebula widgets" section listing the 57
-  bundled widgets, a "Compiling your own Java/SWT widgets" section
-  pointing at `ui.build.swt`, a "Vendored Nebula version" subsection
-  noting `vendor/nebula/VERSION` and the bump workflow, a "JDK 17+
-  required" note, and a "CDT does not require Equinox" callout.
-- `CLAUDE.md`: add a "Building" section explaining the `:build`
-  alias, the `update-vendored-nebula` task, the manifest schema
-  (`:exclude-pkgs`/`:exclude-files`), and the JDK 17 floor. Add the
-  `(:require [ui.nebula])` contract for namespaces importing Nebula
-  widgets. Document that `vendor/nebula/` is a filtered upstream
-  mirror — contributors should NOT edit those files by hand (use
-  `update-vendored-nebula` instead).
-- `NOTICE.md`: EPL-2.0 attribution as described above. Reference the
-  pinned SHA from `vendor/nebula/VERSION`.
+This release is the **first user-visible breaking change in CDT's
+history** — the JDK floor moves from 11 to 17. Signal it loudly and in
+the project's established convention.
+
+#### Version bump
+
+Pick the new version BEFORE editing docs (the version string appears in
+multiple places). Options:
+
+- **0.7.0** — conservative pre-1.0 minor bump. Signals "new
+  capability + breaking environment change" while keeping the 0.x
+  status quo. Recommend this unless the user wants to graduate.
+- **1.0.0** — graduation to stable. Justified by the JDK floor
+  bump being a deliberate breaking change AND by the major new
+  capability (Nebula widgets + reusable Java compilation helper).
+
+Confirm the choice with the user before editing version strings.
+Bumps land in: `Makefile` (the `:version` arg to `clojure -T:build
+jar`), `pom.xml` (`<version>` element), the `:version` field in any
+generated artifacts, and the new "New and Noteworthy" doc filename.
+
+#### New and Noteworthy page (follows existing project convention)
+
+Create `docs/new-and-noteworthy/version-<X.Y.Z>.md` matching the
+existing pattern (see `docs/new-and-noteworthy/version-0.4.4.md`).
+Required contents:
+
+1. **Breaking changes** section at the top — **JDK 17+ now required**.
+   Briefly explain why (Nebula `grid`/`chips` widgets demand
+   `JavaSE-17`), what consumers need to do (upgrade JDK; no Clojure
+   code changes), and what error they'll see if they don't (a clear
+   `UnsupportedClassVersionError` at first import).
+2. **New features** section — 57 Eclipse Nebula widgets bundled in the
+   CDT JAR (briefly enumerate by category: opal family, charting,
+   navigation, etc.); new `ui.build.swt` helper for compiling
+   custom Java/SWT widgets in client projects; the `vendor/nebula/`
+   tree pinned at a specific SHA.
+3. **How to use Nebula widgets** — show the `(:require [ui.nebula])`
+   contract with a minimal example (one `org.eclipse.nebula.*` widget
+   in a `shell`).
+4. **Vendored Nebula version** — note the pinned SHA and the
+   `update-vendored-nebula` workflow.
+5. **CDT does not require Equinox** — preserve this contract as a
+   prominent callout; it's now more relevant than ever since we're
+   bundling Nebula widgets that some assume need Equinox.
+
+#### README.md updates
+
+- **Top of README**: update the "New and Noteworthy" bullet to point
+  at the new `docs/new-and-noteworthy/version-<X.Y.Z>.md` (currently
+  it points at 0.4.4 — replace, don't append).
+- **JDK 17+ required** note prominent near the top, with a brief
+  explanation. This is the breaking change banner — readers must see
+  it before they `clojure -X:deps prep` or pull the new version.
+- **Using Nebula widgets** section listing the 57 bundled widgets
+  (consider grouping by tier or category for readability), with a
+  minimal code example using PShelf or LED.
+- **Compiling your own Java/SWT widgets** section pointing at
+  `ui.build.swt`, with a minimal client `build.clj` snippet.
+- **Vendored Nebula version** subsection noting
+  `vendor/nebula/VERSION` and the bump workflow.
+- **CDT does not require Equinox** callout — same content as in the
+  New and Noteworthy page, but persists in the README for ongoing
+  discoverability.
+
+#### CLAUDE.md updates
+
+Add a "Building" section explaining the `:build` alias, the
+`update-vendored-nebula` task, the manifest schema
+(`:exclude-pkgs`/`:exclude-files`), and the JDK 17 floor. Add the
+`(:require [ui.nebula])` contract for namespaces importing Nebula
+widgets. Document that `vendor/nebula/` is a filtered upstream
+mirror — contributors should NOT edit those files by hand (use
+`update-vendored-nebula` instead).
+
+#### NOTICE.md
+
+EPL-2.0 attribution as described above. Reference the pinned SHA
+from `vendor/nebula/VERSION`.
 
 ### Step 12. Release
 
-Bump version. Confirm `deploy.sh` works against the new JAR layout.
-Tag and push.
+Version is already chosen and propagated through code/docs in Step 11.
+At this point:
+
+1. Confirm `deploy.sh` works against the new JAR file name
+   (`clojure-desktop-toolkit-<X.Y.Z>.jar` rather than the old
+   `clojure-desktop-toolkit.jar`). If it doesn't, surface to user
+   before editing the release script.
+2. Smoke-test the new JAR locally one more time with the full
+   verification suite.
+3. Tag `v<X.Y.Z>` and push (tag + commits).
+4. `make deploy` to push to Clojars.
+5. **Verify the README's "New and Noteworthy" link resolves** on
+   GitHub (point at `docs/new-and-noteworthy/version-<X.Y.Z>.md`) —
+   broken links here are the most likely user-visible regression
+   from this release.
 
 ## Verification (full)
 
@@ -794,6 +871,11 @@ See **Risks** in the source plan. Recap of the top items:
   isn't obvious. Confirm the manual-walk approach before committing.
 - `deploy.sh` needs changes to support the new JAR file naming
   scheme. Get user approval before editing the release pipeline.
+- The version-bump choice in Step 11. Recommend 0.7.0 to the user
+  but confirm before propagating the version string into `Makefile`,
+  `pom.xml`, the new-and-noteworthy filename, and the README link.
+  Do NOT silently pick 1.0.0 — graduation to stable is the user's
+  call, not the implementing Claude's.
 - Verification step 3b finds ANY JFace class reference in the
   compiled JAR. This means source staging let something through —
   stop and investigate before adding more widgets.

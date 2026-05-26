@@ -322,17 +322,43 @@ with `--release 17` is simpler than maintaining two compile passes.
 `System.getProperty "java.version"` and throws a clear error if the
 runtime JDK is < 17.
 
+**This is the first user-visible breaking change in CDT's history.**
+Existing consumers running JDK 11–16 hit `UnsupportedClassVersionError`
+at first import after upgrading. No Clojure code changes are required
+in consumer apps — purely an environment bump. The release must signal
+this prominently:
+
+- A CDT version bump (recommend 0.7.0 conservatively or 1.0.0 to
+  graduate; confirm choice with the user before editing version
+  strings).
+- A new `docs/new-and-noteworthy/version-<X.Y.Z>.md` page leading
+  with the breaking change, following the project's existing
+  `version-0.4.4.md` convention.
+- The README's top "New and Noteworthy" bullet redirected at the
+  new release notes (currently points at 0.4.4 — replace it).
+- A prominent JDK 17+ banner in the README near the top.
+
+See Step 11 in the plan file for the concrete documentation tasks.
+
 ## Files that will be touched (preview — full details in plan)
 
 **New**: `build.clj`, `src/ui/internal/swt_platform.clj`,
 `src/ui/build/swt.clj`, `src/ui/nebula.clj`, `nebula-sources.edn`,
 `vendor/nebula/` (vendored sources + LICENSE + VERSION), `NOTICE.md`,
-plus an `examples/java-widget/` example showing client reusability.
+`docs/new-and-noteworthy/version-<X.Y.Z>.md` (release notes —
+follows the project's existing `version-0.4.4.md` convention; the
+release notes flag the **JDK 17+ breaking change** prominently as
+the first user-visible breaking change in CDT's history), plus an
+`examples/java-widget/` example showing client reusability.
 
 **Modified**: `deps.edn` (add `:build` alias, remove depstar aliases),
-`Makefile` (point at build.clj, add `update-vendored-nebula` target),
-`src/ui/internal/SWT_deps.clj` (delegate platform detection),
-`pom.xml` (used as `:src-pom`, no content change),
-`CLAUDE.md` + `README.md` (document new build, the
-`(:require [ui.nebula])` contract, the vendored Nebula layout and
-update workflow, the JDK 17 floor, and the no-Equinox constraint).
+`Makefile` (point at build.clj, add `update-vendored-nebula` target,
+bump version constant), `pom.xml` (used as `:src-pom` + bump
+`<version>` element), `src/ui/internal/SWT_deps.clj` (delegate
+platform detection), `CLAUDE.md` (document new build, the JDK 17
+floor, the `(:require [ui.nebula])` contract, the vendored Nebula
+layout and update workflow, the no-Equinox constraint),
+`README.md` (redirect the top "New and Noteworthy" bullet at the
+new release notes, add prominent JDK 17+ notice, add Using-Nebula
+and Compiling-your-own-Java-widgets sections, add Vendored-Nebula
+subsection, add no-Equinox callout).
