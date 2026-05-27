@@ -19,10 +19,7 @@
                                :deps/root "projects/server"}}
                  :main-opts ["-m" "mcp-clj.stdio-server.main"]}
 
-           :jar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.0.211"}}
-                 :exec-fn hf.depstar/jar
-                 :exec-args {:jar "clojure-desktop-toolkit.jar" :sync-pom true}}
-
-           :deploy {:replace-deps {slipset/deps-deploy {:mvn/version "0.2.2"}}
-                    :exec-fn deps-deploy.deps-deploy/deploy
-                    :exec-args {:installer :remote :artifact "clojure-desktop-toolkit.jar"}}}}
+           :build {:extra-paths ["src" "resources"]
+                   :extra-deps  {io.github.clojure/tools.build {:mvn/version "0.10.9"}
+                                 babashka/fs                   {:mvn/version "0.5.30"}}
+                   :ns-default  build}}}

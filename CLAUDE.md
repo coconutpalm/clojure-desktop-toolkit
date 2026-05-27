@@ -104,17 +104,124 @@ Requires Clojure 1.12+.
 ## Build Commands
 
 ```bash
-make jar      # clojure -X:jar :version '"0.4.4"' → clojure-desktop-toolkit.jar
-make deploy   # ./deploy.sh → deploy to Clojars
-make clean    # rm -f *.jar
+make jar                    # tools.build → target/clojure-desktop-toolkit-0.7.0.jar
+make compile-java           # just stage + javac the Nebula sources (no JAR)
+make install                # build and install to local Maven (~/.m2)
+make update-vendored-nebula # re-vendor vendor/nebula/ at the pinned SHA
+make deploy                 # ./deploy.sh → deploy to Clojars
+make clean                  # tools.build delete target/
 ```
+
+Version constant lives in `Makefile` as `VERSION = 0.7.0`. The pom
+template at `pom.xml` carries both `<version>` and `<scm><tag>` —
+both must be bumped together at release time.
+
+**JDK 17+ required**: Nebula's `grid` and `chips` widgets demand
+`JavaSE-17` per their MANIFEST.MF, so all bundled bytecode is compiled
+with `--release 17` (class-file major version 61). The `ui.nebula`
+namespace's top-level `when` runs a fail-fast check at require time
+that throws a clear `IllegalStateException` on pre-17 JDKs — much
+nicer than the cryptic `UnsupportedClassVersionError` you'd get deep
+inside Class.forName otherwise.
+
+**Vendored Nebula**: `vendor/nebula/` is a filtered upstream mirror.
+Do NOT edit those files by hand — bump `nebula-sha` in `build.clj` and
+run `make update-vendored-nebula` instead. The exclusion manifest is
+`nebula-sources.edn` in the project root; `:exclude-pkgs` filters out
+JFace adapter subpackages, `:exclude-files` filters individual JFace
+helper files. Both fields take paths relative to a bundle's `src/`
+directory. Source staging uses a manual walk in
+`build/stage-nebula-sources` (NOT `b/copy-dir :ignores`, which matched
+absolute paths and was brittle).
+
+**Two bases, one published pom**: the build uses two tools.build bases.
+`*compile-basis*` includes SWT via `:local/root` `:extra` so `b/javac`
+can compile Nebula sources against it. `publish-basis` is a plain
+`b/create-basis` with NO SWT, used for `b/write-pom` so the published
+pom never declares an SWT dependency. The runtime SWT-loading contract
+in `ui.internal.SWT-deps` is what consumers actually get — they "depend
+on CDT, get SWT for free, never know about it."
+
+**Inner Nebula JAR (Option 4 design, 2026-05-27)**: Nebula bytecode
+does NOT ship as loose `.class` files in the CDT JAR. Instead, `jar`
+produces `target/nebula-<v>.jar`, then copies it into `class-dir` as
+the resource `nebula.jar`. The published CDT JAR layout is:
+- Clojure source under `ui/`, `ui/internal/`, etc.
+- Six platform SWT zips in resources root (`swt-4.38-<plat>.zip`).
+- `nebula.jar` at the JAR root.
+
+At runtime, `ui.nebula` extracts `nebula.jar` and pomegranate-adds it
+to the same `DynamicClassLoader` that holds SWT. This is the workaround
+for the classloader split that would otherwise prevent
+`PShelf extends Canvas` from resolving when defined by the parent
+AppClassLoader. See `Plans/todo/compile-java-swt-widgets-context.md`
+("Runtime classloader problem") for the full diagnosis. **Verification
+gate**: `jar tf target/clojure-desktop-toolkit-<v>.jar | grep '^org/eclipse/nebula/.*\.class$' | wc -l` must return `0`.
+
+**No Equinox**: CDT must never require an OSGi/Equinox runtime. The 53
+bundled Nebula widgets are curated for OSGi-free operation. Widgets
+that hard-require `Activator.getDefault()` returning non-null, NLS
+resource bundles, or Eclipse extension-registry lookups are excluded.
 
 **Development REPL:**
 ```bash
 clojure -M:dev   # starts REPL with src, resources, dev, and examples on classpath
 ```
 
+For Nebula widgets at the REPL, the dev `:dev` alias does NOT auto-compile
+Java sources. Two workflows:
+
+1. **Recommended for active CDT development**: run `make compile-java`
+   once, then start a REPL with `target/classes` on the classpath:
+   ```bash
+   clojure -M:dev -Sdeps '{:paths ["target/classes"]}'
+   ```
+   Edit `.java` sources, re-run `make compile-java`, restart the REPL.
+2. **Mirrors downstream consumers**: run `make install`, then depend on
+   the installed JAR from a separate scratch project.
+
+For SWT UI testing from a headless nREPL on macOS, see SWT-UI-RULES.md
+("UI Testing at the REPL"). The standalone-REPL workflow does NOT work
+on macOS unless the application itself embeds an nREPL — the
+`-XstartOnFirstThread` JVM main thread is what SWT requires for
+`Display/getDefault`. For one-off smoke tests, write a `-main`
+(see `dev/cdt_smoke.clj` for a working example).
+
 **Tests** use [Hyperfiddle RCF](https://github.com/hyperfiddle/rcf) — tests are inline in source files and activated via `(rcf/enable!)` in `dev/user.clj`. Run them by evaluating the test forms in the REPL.
+
+## Bundled Nebula widgets (0.7.0+)
+
+53 Eclipse Nebula widgets ship as a runtime-extracted inner JAR
+(`nebula.jar` inside the CDT JAR, NOT loose `.class` files). Consumers
+`(:require [ui.nebula])` **before** `(:require [ui.SWT])` in any
+namespace that uses a Nebula widget.
+
+```clojure
+(ns my.ui
+  (:require [ui.nebula]                ; MUST come first — see below.
+            [ui.SWT :as ui :refer [application shell pshelf pshelf-item label]]))
+```
+
+**Why the order matters.** `ui.nebula` does three things at load time,
+in this exact sequence: (1) JDK 17 fail-fast check; (2) `ui.internal.SWT-deps`
+loads, pomegranate-adding SWT to the DynamicClassLoader; (3) extract
+`nebula.jar` resource + pomegranate-add it to the same loader. ONLY
+THEN does ui.nebula's body call `(require '[ui.SWT])`, which transitively
+runs `ui.internal.reflectivity`'s classpath scan. With both SWT and
+Nebula on the loader at scan time, `define-inits` auto-generates
+`pshelf`, `pshelf-item`, `led`, etc. as `ui.SWT/*` init fns alongside
+the built-in SWT widgets. Requiring `ui.SWT` first means the scan runs
+without Nebula, and the Nebula init fns never appear.
+
+The `ui.build.swt` namespace is internal-only for v0.7.0 — exposing it
+as a public client API for downstream-Java-widget compilation is
+deferred. See `Plans/todo/compile-java-swt-widgets-context.md` for the
+classloader-strategy rework that v0.8.0+ ships.
+
+Widgets deferred to a future release (require JFace/Forms/Draw2D/core.runtime
+or Windows-only SWT internals): `pagination`, `picture`, `richtext`,
+`roundedtoolbar`, `segmentedbar`, `timeline`, `treemapper`, `xviewer`,
+`bidilayout`, `datechooser`, `radiogroup`, `geomap`.
 
 ## Architecture
 

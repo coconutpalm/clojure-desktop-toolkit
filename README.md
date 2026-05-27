@@ -6,8 +6,19 @@
 
 [![Clojars Project](https://img.shields.io/clojars/v/io.github.coconutpalm/clojure-desktop-toolkit.svg)](https://clojars.org/io.github.coconutpalm/clojure-desktop-toolkit)
 
-* **[New and Noteworthy](docs/new-and-noteworthy/version-0.4.4.md)** - We package SWT libraries inside your Uberjar and automatically select the right one!  More!
+* **[New and Noteworthy](docs/new-and-noteworthy/version-0.7.0.md)** — 53 Eclipse Nebula widgets bundled, plus a reusable build helper for your own Java/SWT widgets. **JDK 17+ required** (breaking change — see below).
 * **[Current documentation](docs/000-index.md)** or see below for a brief synopsis.
+
+> **⚠️ JDK 17+ required as of 0.7.0.** Older JDKs will hit a clear
+> `IllegalStateException` from `ui.nebula` at namespace require time
+> (not a cryptic `UnsupportedClassVersionError` deep in widget loading).
+> No Clojure code changes are required — purely an environment bump.
+
+> **CDT does not require an Equinox runtime.** The bundled Nebula widgets
+> are curated for OSGi-free operation; widgets that hard-require Equinox
+> internals are excluded. This is permanent — OSGi and Clojure are both
+> opinionated about classloaders in ways that fight each other and would
+> defeat CDT's lightweight value proposition.
 
 Web applications used to be simpler and easier to build than desktop graphical applications.  With the expectations of modern CSS and Javascript, this is no longer the case.  Modern web applications are beautiful, but they are expensive.
 
@@ -93,6 +104,57 @@ The above application running.
 Notice how the library automatically supplies links to Eclipse's SWT documentation.  There's also a `(swtdoc)` command for interactively exploring the API from the REPL.
 
 ![Screenshot](docs/images/demo-app.png)
+
+## Using bundled Eclipse Nebula widgets
+
+As of 0.7.0, CDT ships 53 Eclipse Nebula widgets (EPL-2.0) directly in
+the JAR — no extra Maven coord, no Equinox runtime. To use them,
+`(:require [ui.nebula])` **before** `ui.SWT` in your namespace:
+
+```clojure
+(ns my.ui
+  (:require [ui.nebula]                  ; MUST come first — see below
+            [ui.SWT :as ui :refer [application shell pshelf pshelf-item label]])
+  (:import  [org.eclipse.swt SWT]
+            [org.eclipse.swt.layout FillLayout]))
+```
+
+`ui.nebula` does three things in order: enforces the JDK 17+ floor;
+forces SWT to extract onto the runtime classloader (`ui.internal.SWT-deps`);
+and extracts a second bundled JAR (`nebula.jar`, inside the CDT JAR) so
+the Nebula bytecode lands on the same classloader as SWT. **Load order
+matters** — if `ui.SWT` is required before `ui.nebula`, the reflective
+init-fn generator runs without Nebula on the classpath and `pshelf`,
+`pshelf-item`, etc. won't exist as init functions.
+
+Bundled widgets appear as init fns in `ui.SWT` alongside the built-in
+SWT widgets: `pshelf`, `pshelf-item`, `led`, `c-date-time` (well — see
+the kebab-case quirk in the v0.7.0 release notes), and many more.
+
+See [`docs/new-and-noteworthy/version-0.7.0.md`](docs/new-and-noteworthy/version-0.7.0.md)
+for the full list of bundled widgets grouped by category, plus a
+runnable working example in
+[`examples/nebula-widget/`](examples/nebula-widget/).
+
+### Vendored Nebula version
+
+Nebula sources are vendored under [`vendor/nebula/`](vendor/nebula/) at
+a pinned upstream SHA (see [`vendor/nebula/VERSION`](vendor/nebula/VERSION)).
+The build is self-contained — no network at build time, no sibling
+checkout. Bumping the pinned SHA is a single `make update-vendored-nebula`
+call. The exclusion manifest is [`nebula-sources.edn`](nebula-sources.edn).
+
+## Compiling your own Java/SWT widgets (deferred to v0.8.0+)
+
+A `ui.build.swt` helper exists internally and is what CDT itself uses
+to compile the bundled Nebula widgets at build time. **Exposing it as
+a public client API is deferred** to a future release because the
+runtime classloader split (CDT JAR on the system classpath vs. SWT on
+a runtime `DynamicClassLoader`) means custom Java widgets compiled by
+the consumer can't see SWT at use time. See the "Runtime classloader
+problem" section of `Plans/todo/compile-java-swt-widgets-context.md`
+for the diagnosis and the planned fix (a child-first classloader or an
+equivalent client-loader strategy).
 
 ## Project status
 

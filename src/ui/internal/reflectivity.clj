@@ -1,7 +1,7 @@
 (remove-ns 'ui.internal.reflectivity)
 
 (ns ui.internal.reflectivity
-  (:require [ui.internal.SWT-deps :refer [swt-libs-loaded?]]
+  (:require [ui.internal.SWT-deps :as swt-deps :refer [swt-libs-loaded?]]
             [clojure.string :as str]
             [clojure.pprint :refer [pprint]]
             [righttypes.nothing :refer [something]]
@@ -9,7 +9,8 @@
             [righttypes.conversions :refer :all]
             [righttypes.util.names :refer [->kebab-case ->camelCase]]
             [righttypes.util.interop :refer [array]])
-  (:import [java.lang.reflect Modifier Field]
+  (:import [java.io File]
+           [java.lang.reflect Modifier Field]
            [clojure.lang Symbol]
            [org.reflections Reflections]
            [org.reflections.scanners SubTypesScanner]
@@ -20,8 +21,72 @@
 
 swt-libs-loaded?
 
+(defn- classpath-urls
+  "Return a vector of URLs covering every entry on the JVM's classpath,
+   plus the runtime-extracted SWT jar (which is added to the classloader
+   by `ui.internal.SWT-deps` via pomegranate, not to `java.class.path`).
+   We pass these to `Reflections` explicitly because the library's
+   default URL discovery (`ClasspathHelper.forJavaClassPath`) depends
+   on `javax.servlet.ServletContext` on some classpaths, which makes
+   it fail under modern -M/-X launches that don't include the Servlet
+   API. Passing URLs explicitly is both portable and reproducible.
+
+   The SWT jar URL matters: without it, Reflections can't trace
+   `PShelf extends Canvas extends Composite` (Canvas and Composite live
+   in the runtime-extracted swt.jar, not in `java.class.path`), so
+   transitive subtype enumeration misses most bundled Nebula widgets."
+  []
+  (let [from-cp (->> (str/split (System/getProperty "java.class.path") (re-pattern File/pathSeparator))
+                     (remove str/blank?)
+                     (mapv #(-> ^String % File. .toURI .toURL)))
+        swt-jar-url    (-> swt-deps/swt :jar .toURI .toURL)
+        ;; Soft-resolve `ui.nebula/nebula-jar` WITHOUT triggering load.
+        ;; ui.nebula loads ui.SWT in its body, which transitively loads
+        ;; this namespace — so when classpath-urls runs, ui.nebula is
+        ;; mid-load and its `nebula-jar` defonce has already produced
+        ;; the extracted File. `find-ns` checks for the partially-loaded
+        ;; namespace without re-triggering load (which would loop).
+        ;; Consumers who only require ui.SWT (no Nebula) skip this
+        ;; branch — `find-ns` returns nil.
+        nebula-jar-url (when-let [ns-obj (find-ns 'ui.nebula)]
+                         (when-let [v (ns-resolve ns-obj 'nebula-jar)]
+                           (when-let [f (try (deref v) (catch Throwable _ nil))]
+                             (-> ^File f .toURI .toURL))))]
+    (cond-> (conj from-cp swt-jar-url)
+      nebula-jar-url (conj nebula-jar-url))))
+
 (def swt-index
-  (-> (Reflections. (to-array [(SubTypesScanner.)]))))
+  (let [urls (classpath-urls)
+        args (cons (SubTypesScanner.) urls)]
+    (Reflections. (to-array args))))
+
+(defn- swt-style-ctor?
+  "True if `clazz` has at least one public 2-arg constructor whose
+   second arg is `int` (i.e. the SWT-style `(parent, style)` pattern).
+   `define-inits` assumes this shape; classes without it would throw
+   `IllegalArgumentException: No matching ctor` at namespace load.
+   Skipping them here is the difference between v0.7.0 picking up
+   ~50 extra Nebula widgets cleanly and CDT failing to load at all
+   for downstream consumers.
+
+   FOLLOW-UP: A handful of bundled Nebula classes don't conform —
+   most are internal helpers (CalendarComposite, MonthPick,
+   CustomButton, GanttComposite, GridToolTip) instantiated by their
+   wrapping widget's own setup, so excluding them is fine. The one
+   user-facing exclusion is `org.eclipse.nebula.widgets.oscilloscope.
+   multichannel.Plotter`, whose ctor is `(int channelCount, Composite
+   parent, int style)` — channel count first, then SWT pair. A future
+   release could expose it via a hand-written `plotter` wrapper init
+   (~10 lines)."
+  [^Class clazz]
+  (->> (.getConstructors clazz)
+       (some (fn [^java.lang.reflect.Constructor c]
+               (let [ts (.getParameterTypes c)]
+                 (and (= 2 (alength ts))
+                      (= Integer/TYPE (aget ts 1))))))))
+
+(defn- non-abstract? [^Class c]
+  (zero? (bit-and Modifier/ABSTRACT (.getModifiers c))))
 
 (def swt-composites (->> (.getSubTypesOf swt-index Composite)
                          (seq)
@@ -30,6 +95,8 @@ swt-libs-loaded?
                          (remove #(.endsWith (.getName %) "OleClientSite"))
                          (remove #(.endsWith (.getName %) "OleControlSite"))
                          (remove #(.endsWith (.getName %) "WebSite"))
+                         (filter non-abstract?)
+                         (filter swt-style-ctor?)
                          (#(conj % Composite))))
 
 (def swt-widgets (->> (.getSubTypesOf swt-index Widget)
@@ -37,12 +104,16 @@ swt-libs-loaded?
                       (remove #(.isAssignableFrom Composite %))
                       (remove #(.isAssignableFrom Item %))
                       (remove #(not (nil? (.getEnclosingClass %))))
-                      (remove #{Control Tray TaskBar TaskItem ScrollBar})))
+                      (remove #{Control Tray TaskBar TaskItem ScrollBar})
+                      (filter non-abstract?)
+                      (filter swt-style-ctor?)))
 
 (def swt-items (->> (.getSubTypesOf swt-index Item)
                     (seq)
                     (remove #{TaskItem})
                     (remove #(not (nil? (.getEnclosingClass %))))
+                    (filter non-abstract?)
+                    (filter swt-style-ctor?)
                     (sort-by #(.getSimpleName %))))
 
 (def swt-layouts (->> (.getSubTypesOf swt-index Layout)

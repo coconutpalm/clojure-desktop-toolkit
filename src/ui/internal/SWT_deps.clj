@@ -1,77 +1,25 @@
 (ns ui.internal.SWT-deps
-  "Dynamically resolve/load SWT subsystem dependencies when this namespace is required.
+  "Dynamically resolve/load SWT subsystem dependencies when this namespace
+   is required. Platform detection lives in ui.internal.swt-platform; this
+   namespace adds the runtime classpath-injection side effects.
 
-   If you package SWT yourself, use a Maven repository directory layout and modify
-   the dynamic `ui.repositories/*repositories*` map to point to your repository (as a
-   file URL) instead of the default ones.
-
-   Alternatively, ensure the correct SWT is already on the classpath at launch.
-   Then this code will automatically detect it and won't try to dynamically resolve SWT."
+   If you package SWT yourself, ensure the correct SWT is already on the
+   classpath at launch. This code will detect it via `import` and skip the
+   pomegranate fallback."
   (:require
-   [clojure.java.io :as io]
    [babashka.fs :as fs]
    [cemerick.pomegranate :as pom]
-   [ui.repositories :refer [*repositories*]]
-   [clojure.repl.deps :refer [add-libs]])
+   [ui.internal.swt-platform :as plat])
   (:import
    [java.io File]))
 
-(def platform-lib-suffix
-  (let [suffixes {"lin" {"x86_64" 'gtk.linux.x86_64
-                         "amd64" 'gtk.linux.x86_64
-                         "aarch64" 'gtk.linux.aarch64
-                         "amd" 'gtk.linux.aarch64}
-                  "mac" {"x86_64" 'cocoa.macosx.x86_64
-                         "aarch64" 'cocoa.macosx.aarch64
-                         "arm64" 'cocoa.macosx.aarch64}
-                  "win" {"x86_64" 'win32.win32.x86_64
-                         "ia64" 'win32.win32.x86_64
-                         "amd64" 'win32.win32.x86_64}}
-        arch (System/getProperty "os.arch")
-        os-code (-> (System/getProperty "os.name")
-                    (.substring 0 3)
-                    (.toLowerCase))]
-    (-> (get suffixes os-code "-unexpected os-code-")
-        (get arch "-unsupported-"))))
-
-
-(def ^{:dynamic true
-       :doc "The prefix to use for the SWT platform-native zip filename resource."}
-  *platform-zip-prefix* "swt-4.38")
-
-;; NOTE: The difference is hyphens instead of dots.
-(def platform-zip-suffix
-  (let [suffixes {"lin" {"x86_64" 'gtk-linux-x86_64
-                         "amd64" 'gtk-linux-x86_64
-                         "aarch64" 'gtk-linux-aarch64
-                         "amd" 'gtk-linux-aarch64}
-                  "mac" {"x86_64" 'cocoa-macosx-x86_64
-                         "aarch64" 'cocoa-macosx-aarch64
-                         "arm64" 'cocoa-macosx-aarch64}
-                  "win" {"x86_64" 'win32-win32-x86_64
-                         "ia64" 'win32-win32-x86_64
-                         "amd64" 'win32-win32-x86_64}}
-        arch (System/getProperty "os.arch")
-        os-code (-> (System/getProperty "os.name")
-                    (.substring 0 3)
-                    (.toLowerCase))]
-    (-> (get suffixes os-code "-unexpected os-code-")
-        (get arch "-unsupported-"))))
-
-(defn platform-zip []
-  (str *platform-zip-prefix* "-" platform-zip-suffix ".zip"))
-
 (defn ->platform-lib
-  "Returns the full library dependency given a qualified group/archive symbol"
+  "Returns the full library dependency given a qualified group/archive symbol,
+   suffixed with the current host platform's lib suffix (e.g.
+   cocoa.macosx.aarch64)."
   [ga-symbol]
-  (symbol (namespace ga-symbol) (str (name ga-symbol) "." platform-lib-suffix)))
-
-#_(defn ->platform-resource-jar
-  "Returns the full library dependency given a qualified group/archive symbol"
-  [ga-symbol version]
-  (io/resource
-    (str (namespace ga-symbol) "/" (str (name ga-symbol) "." platform-lib-suffix "_" version ".jar"))))
-
+  (let [suffix (plat/platform-lib-suffix (plat/detect-os-arch))]
+    (symbol (namespace ga-symbol) (str (name ga-symbol) "." suffix))))
 
 ;; SWT and dependencies ------------------------------------------------------------
 
@@ -79,8 +27,7 @@
   []
   (let [tmpdir (File. (str (fs/create-temp-dir)))]
     (.deleteOnExit tmpdir)
-    (fs/unzip (-> (platform-zip) io/resource io/input-stream) tmpdir)
-    {:dir tmpdir :jar (File. tmpdir "swt.jar") :src (File. tmpdir "src.zip")}))
+    (plat/extract-swt-zip! (plat/platform-zip-resource-name) tmpdir)))
 
 (defonce swt (swt-platform))
 
@@ -89,7 +36,6 @@
   (pom/add-classpath (:jar swt))
   (when (.exists (:src swt))
     (pom/add-classpath (:src swt))))
-
 
 (defonce
   ^{:doc "Result of loading SWT subsystem dependencies."}
@@ -121,6 +67,6 @@
 
 (defn databinding-lib
   [subproject]
-  (symbol "org.eclipse.platform" (str "org.eclipse.core.databinding" (when subproject (str "." subproject))) ))
+  (symbol "org.eclipse.platform" (str "org.eclipse.core.databinding" (when subproject (str "." subproject)))))
 
 (databinding-lib nil)

@@ -1,0 +1,226 @@
+/*******************************************************************************
+ * Copyright (c) 2009 BestSolution.at
+ *
+ * This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License 2.0
+ * which accompanies this distribution, and is available at
+ * https://www.eclipse.org/legal/epl-2.0/
+ * 
+ * SPDX-License-Identifier: EPL-2.0
+ *
+ * Contributors:
+ *    tom.schindl@bestsolution.at - initial API and implementation
+ *    gusten__79@hotmail.com - bugfix in 257923
+ *******************************************************************************/
+package org.eclipse.nebula.widgets.grid;
+
+import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.ControlEditor;
+import org.eclipse.swt.events.ControlEvent;
+import org.eclipse.swt.events.ControlListener;
+import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Listener;
+
+/**
+ * Manager for a Control that appears below the grid column header. Based on
+ * {@link GridEditor}.
+ */
+class GridHeaderEditor extends ControlEditor {
+
+	private Grid table;
+
+	private GridColumn column;
+
+	ControlListener columnListener;
+
+	Listener resizeListener;
+
+	private final Listener columnVisibleListener;
+
+	private final Listener columnGroupListener;
+
+	private final Listener scrollListener;
+
+	private final Listener mouseOverListener;
+
+	/**
+	 * Creates a TableEditor for the specified Table.
+	 *
+	 * @param column
+	 *            the Table Control above which this editor will be displayed
+	 */
+	GridHeaderEditor(final GridColumn column) {
+		super(column.getParent());
+
+		this.table = column.getParent();
+		this.column = column;
+
+		columnListener = new ControlListener() {
+			public void controlMoved(ControlEvent e) {
+				layout();
+				e.display.asyncExec(() -> layout());
+			}
+
+			public void controlResized(ControlEvent e) {
+				layout();
+			}
+		};
+
+		columnVisibleListener = event -> {
+			getEditor().setVisible(column.isVisible());
+			layout();
+		};
+
+		resizeListener = event -> layout();
+		scrollListener = event -> layout();
+
+		columnGroupListener = event -> {
+			if (getEditor() == null || getEditor().isDisposed())
+				return;
+			getEditor().setVisible(column.isVisible());
+			layout();
+		};
+
+		// Reset the mouse cursor when the mouse hovers the control
+		mouseOverListener = event -> {
+			if (table.getCursor() != null) {
+				// We need to reset because it could be that when we left the resizer was active
+				table.hoveringOnColumnResizer = false;
+				table.setCursor(null);
+			}
+		};
+
+		// The following three listeners are workarounds for
+		// Eclipse bug 105764
+		// https://bugs.eclipse.org/bugs/show_bug.cgi?id=105764
+		table.addListener(SWT.Resize, resizeListener);
+
+		if (table.getVerticalScrollBarProxy() != null) {
+			table.getVerticalScrollBarProxy().addListener(SWT.Selection,scrollListener);
+		}
+		if (table.getHorizontalScrollBarProxy() != null) {
+			table.getHorizontalScrollBarProxy().addListener(SWT.Selection,scrollListener);
+		}
+
+		// To be consistent with older versions of SWT, grabVertical defaults to
+		// true
+		grabVertical = true;
+
+		// initColumn();
+	}
+
+	/**
+	 * Returns the bounds of the editor.
+	 *
+	 * @return bounds of the editor.
+	 */
+	protected Rectangle internalComputeBounds() {
+		column.getHeaderRenderer().setBounds(column.getBounds());
+		return column.getHeaderRenderer().getControlBounds(column, true);
+	}
+
+	/**
+	 * Removes all associations between the TableEditor and the cell in the
+	 * table. The Table and the editor Control are <b>not</b> disposed.
+	 */
+	public void dispose() {
+		if (!table.isDisposed() && !column.isDisposed()) {
+			column.removeControlListener(columnListener);
+			if (column.getColumnGroup() != null) {
+				column.getColumnGroup().removeListener(SWT.Expand,columnGroupListener);
+				column.getColumnGroup().removeListener(SWT.Collapse,columnGroupListener);
+			}
+		}
+
+		if (!table.isDisposed()) {
+			table.removeListener(SWT.Resize, resizeListener);
+
+			if (table.getVerticalScrollBarProxy() != null)
+				table.getVerticalScrollBarProxy().removeListener(SWT.Selection,scrollListener);
+
+			if (table.getHorizontalScrollBarProxy() != null)
+				table.getHorizontalScrollBarProxy().removeListener(SWT.Selection,scrollListener);
+		}
+
+		columnListener = null;
+		resizeListener = null;
+		table = null;
+
+		if ( getEditor() != null && !getEditor().isDisposed() ) {
+			getEditor().dispose();
+		}
+
+		super.dispose();
+	}
+
+	/**
+	 * Sets the zero based index of the column of the cell being tracked by this
+	 * editor.
+	 *
+	 * @param column
+	 *            the zero based index of the column of the cell being tracked
+	 *            by this editor
+	 */
+	void initColumn() {
+
+		column.addControlListener(columnListener);
+		column.addListener(SWT.Show, columnVisibleListener);
+		column.addListener(SWT.Hide, columnVisibleListener);
+
+		if (column.getColumnGroup() != null) {
+			column.getColumnGroup()
+					.addListener(SWT.Expand, columnGroupListener);
+			column.getColumnGroup().addListener(SWT.Collapse,
+					columnGroupListener);
+		}
+		layout();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	public void layout() {
+		if (table.isDisposed())
+			return;
+
+		boolean hadFocus = false;
+		if (getEditor() == null || getEditor().isDisposed() || !column.isVisible()) {
+			return;
+		}
+
+		if (getEditor().getVisible()) {
+			hadFocus = getEditor().isFocusControl();
+		}
+
+		Rectangle rect = internalComputeBounds();
+		if (rect == null || rect.x < 0) {
+			getEditor().setVisible(false);
+			return;
+		} else if (table.getItemHeaderWidth() > 0 && table.getItemHeaderWidth() > rect.x) {
+			getEditor().setVisible(false);
+			return;
+		} else {
+			getEditor().setVisible(true);
+		}
+		getEditor().setBounds(rect);
+
+		if (hadFocus) {
+			if (getEditor() == null || getEditor().isDisposed())
+				return;
+			getEditor().setFocus();
+		}
+	}
+
+	public void setEditor(Control editor) {
+		if (getEditor() != null) {
+			getEditor().removeListener(SWT.MouseEnter, mouseOverListener);
+		}
+		super.setEditor(editor);
+
+		if (editor != null) {
+			getEditor().addListener(SWT.MouseEnter, mouseOverListener);
+		}
+	}
+
+}

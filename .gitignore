@@ -8,5 +8,6 @@ target
 .calva
 .vscode
 .nrepl-port
+.metals
 
 clojure-desktop-toolkit.jar

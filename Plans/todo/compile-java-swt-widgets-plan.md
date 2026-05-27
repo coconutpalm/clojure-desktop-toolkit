@@ -25,9 +25,20 @@ Before starting:
    per-package audit ran against (see context file's "Nebula SHA
    audited for this plan" section). Use this unless you have a
    reason to pick a different SHA; deviating requires re-running the
-   audit. This goes into `build.clj` as `nebula-sha` (step 3). No
-   sibling Nebula checkout is needed — the build vendors sources via
+   per-widget audit described in the inline notes added to
+   `nebula-sources.edn` in Step 8. This goes into `build.clj` as
+   `nebula-sha` (step 3). No sibling Nebula checkout is needed —
+   the build vendors sources via
    `clojure -T:build update-vendored-nebula`.
+5. Confirm `git` is on `PATH` and network access to
+   `github.com/EclipseNebula/nebula.git` works. The
+   `update-vendored-nebula` task `git clone`s the upstream repo into
+   `target/build-deps/`. (Routine `make jar` builds do NOT need
+   network — they use the vendored tree.)
+6. Note pre-existing version skew in the repo: `Makefile` declares
+   `0.6.0`, `pom.xml` declares `0.5.1`, the recent commit message says
+   `Bump version to 0.6.0`. The version bump in Step 11 reconciles
+   these. Until then, treat `0.6.0` as "current."
 
 ## File-by-file specification
 
@@ -97,9 +108,13 @@ not change.
    namespace adds the runtime classpath-injection side effects."
   (:require [ui.internal.swt-platform :as plat]
             [cemerick.pomegranate :as pom]
-            [babashka.fs :as fs]
-            [clojure.repl.deps :refer [add-libs]])
+            [babashka.fs :as fs])
   (:import [java.io File]))
+
+;; The original file referenced `[ui.repositories :refer [*repositories*]]`
+;; and `[clojure.repl.deps :refer [add-libs]]` but neither symbol was used
+;; in the body. Both are dropped here. If anything outside this namespace
+;; still expects them re-exported from SWT-deps, restore the require.
 
 (defn swt-platform []
   (let [tmpdir (File. (str (fs/create-temp-dir)))]
@@ -188,13 +203,42 @@ loads before any `org.eclipse.nebula.*` class is touched.
 ```clojure
 (ns ui.nebula
   "Ensures SWT is loaded before any org.eclipse.nebula.* class is touched.
-   Always `(require '[ui.nebula])` in namespaces that import Nebula widgets."
+   Always `(require '[ui.nebula])` in namespaces that import Nebula widgets.
+
+   At load time this namespace also enforces the JDK 17+ floor — Nebula's
+   `grid` and `chips` widgets are compiled with `--release 17` and the
+   shipped bytecode is class-file major version 61. A pre-17 JVM would
+   otherwise produce a cryptic `UnsupportedClassVersionError` deep inside
+   widget loading; the fail-fast check turns that into a clear error at
+   namespace require time."
   (:require [ui.internal.SWT-deps]))  ;; forces SWT-loading defonces
+
+(defn- jdk-major-version
+  "Parses `java.version` (e.g., \"17.0.10\", \"11.0.21\", \"1.8.0_392\")
+   into an integer major version. Returns 17 for \"17.x\", 11 for \"11.x\",
+   8 for \"1.8.x\", etc."
+  []
+  (let [v (System/getProperty "java.version")
+        [a b] (clojure.string/split v #"\.")
+        a' (Integer/parseInt a)]
+    (if (= a' 1) (Integer/parseInt b) a')))
+
+(when (< (jdk-major-version) 17)
+  (throw (IllegalStateException.
+           (str "Clojure Desktop Toolkit's Nebula widgets require JDK 17 "
+                "or later (bytecode major version 61). Detected JDK: "
+                (System/getProperty "java.version")
+                ". Upgrade your JDK before requiring ui.nebula."))))
 
 (defn ensure-loaded! []
   (Class/forName "org.eclipse.nebula.widgets.opal.commons.SWTGraphicUtil")
   :ok)
 ```
+
+Note: the top-level `when` runs at namespace-require time. The
+`jdk-major-version` helper handles both modern (`17.0.10` → 17) and
+legacy (`1.8.0_392` → 8) version strings, so the error path is
+robust on any JVM that still tries to load the namespace.
 
 ### New: `build.clj`
 
@@ -213,8 +257,12 @@ The top-level tools.build script. Replaces `clojure -X:jar` (depstar).
 (def vendor-dir "vendor/nebula")
 (defn jar-file [v] (format "target/clojure-desktop-toolkit-%s.jar" v))
 
-(def publish-basis (delay (b/create-basis {:project "deps.edn"})))
-(def compile-basis (delay (swt-build/compile-basis {:project "deps.edn"})))
+;; Both bases are delays so callers pay the cost once per build invocation.
+;; Renamed from `compile-basis` to `*compile-basis*` to avoid shadowing
+;; `swt-build/compile-basis` (a function) — bare `compile-basis` in this
+;; namespace must unambiguously deref the local delay.
+(def publish-basis  (delay (b/create-basis {:project "deps.edn"})))
+(def *compile-basis* (delay (swt-build/compile-basis {:project "deps.edn"})))
 
 ;; Pinned upstream version of Eclipse Nebula. Bumping this constant +
 ;; running `clojure -T:build update-vendored-nebula` + committing the
@@ -248,11 +296,17 @@ The top-level tools.build script. Replaces `clojure -X:jar` (depstar).
 
 (defn clean [_] (b/delete {:path "target"}))
 
-(defn compile-java [_]
+(defn compile-java
+  "Stage Nebula sources (per nebula-sources.edn) and compile them.
+   Cleans `class-dir` and `java-staging` first so stale .class files
+   from previous, broader manifests don't sneak into the JAR."
+  [_]
+  (b/delete {:path class-dir})
+  (b/delete {:path java-staging})
   (let [manifest (edn/read-string (slurp "nebula-sources.edn"))]
     (stage-nebula-sources manifest)
     (swt-build/javac-with-swt
-      {:basis     @compile-basis
+      {:basis     @*compile-basis*
        :src-dirs  [java-staging]
        :class-dir class-dir})))
 
@@ -272,21 +326,37 @@ The top-level tools.build script. Replaces `clojure -X:jar` (depstar).
   (b/install {:basis @publish-basis :lib lib :version version
               :class-dir class-dir :jar-file (jar-file version)}))
 
+(defn- run!
+  "Wrap b/process so a non-zero exit aborts the build with a clear
+   message. b/process returns {:exit n ...}; without this, a failed
+   `git checkout` would be silently swallowed and we'd vendor whatever
+   HEAD the clone landed on."
+  [args]
+  (let [{:keys [exit]} (b/process {:command-args args})]
+    (when-not (zero? exit)
+      (throw (ex-info (str "Command failed (exit " exit "): "
+                           (clojure.string/join " " args))
+                      {:args args :exit exit})))))
+
 (defn update-vendored-nebula
   "Bump the vendored Nebula sources to the SHA in `nebula-sha`. Clones
    EclipseNebula/nebula at the pinned SHA, filters to just the bundle
    src/ trees enumerated in nebula-sources.edn, and overwrites
    `vendor/nebula/`. Also vendors LICENSE and writes vendor/nebula/VERSION.
 
-   Run this manually when bumping versions. Commit the resulting tree.
-   This task is NOT part of `jar` — routine builds use the existing
-   vendored sources."
+   Requires `git` on PATH and network access to nebula-repo. Run this
+   manually when bumping versions. Commit the resulting tree. This task
+   is NOT part of `jar` — routine builds use the existing vendored
+   sources.
+
+   Cannot be invoked until `nebula-sources.edn` exists (it's slurped to
+   know which bundles to vendor)."
   [_]
   (let [tmpdir   "target/build-deps/nebula-fresh"
         manifest (edn/read-string (slurp "nebula-sources.edn"))]
     (b/delete {:path tmpdir})
-    (b/process {:command-args ["git" "clone" nebula-repo tmpdir]})
-    (b/process {:command-args ["git" "-C" tmpdir "checkout" nebula-sha]})
+    (run! ["git" "clone" nebula-repo tmpdir])
+    (run! ["git" "-C" tmpdir "checkout" nebula-sha])
     (b/delete {:path vendor-dir})
     (fs/create-dirs vendor-dir)
     (doseq [{:keys [src]} (vals manifest)]
@@ -318,12 +388,13 @@ including the excluded subpackages, to understand what's deliberately
 omitted and why.
 
 **Open detail to verify during step 4**: `b/copy-dir`'s `:ignores`
-matching rules. tools.build 0.10.x documents `:ignores` as a coll of
-regexes, but the match target (full path? relative path? filename
-only?) should be confirmed against the actual extracted Nebula source
-paths. If `:ignores` doesn't behave as expected, replace
-`stage-nebula-sources` with a manual `fs/walk-file-tree` filter — the
-function is small enough to hand-roll without ceremony.
+AND `:include` matching rules. tools.build 0.10.x documents `:ignores`
+as a coll of regexes and `:include` as a glob string, but the match
+targets (full path? relative path? filename only? glob semantics?)
+should be confirmed against the actual staged Nebula source paths. If
+either doesn't behave as expected, replace `stage-nebula-sources` with
+a manual `fs/walk-file-tree` filter — the function is small enough to
+hand-roll without ceremony.
 
 ### New: `nebula-sources.edn`
 
@@ -423,10 +494,12 @@ and `:exclude-files` are the only fields that affect build behavior.
  :geomap              {:src "widgets/geomap/org.eclipse.nebula.widgets.geomap/src"
                        :tier 3
                        :exclude-pkgs ["org/eclipse/nebula/widgets/geomap/jface"]}
+ ;; grid: the regex for the first :exclude-pkgs entry already matches
+ ;; everything under gridviewer/, including the internal/ subdirectory,
+ ;; so a second entry is unnecessary. Keep one path.
  :grid                {:src "widgets/grid/org.eclipse.nebula.widgets.grid/src"
                        :tier 3
-                       :exclude-pkgs ["org/eclipse/nebula/jface/gridviewer"
-                                      "org/eclipse/nebula/jface/gridviewer/internal"]}
+                       :exclude-pkgs ["org/eclipse/nebula/jface/gridviewer"]}
  :radiogroup          {:src "widgets/radiogroup/org.eclipse.nebula.widgets.radiogroup/src"
                        :tier 3
                        :exclude-pkgs ["org/eclipse/nebula/jface/viewer/radiogroup"]}
@@ -493,15 +566,17 @@ aliases unchanged.
 ```makefile
 # Release Checklist:
 #
-# Update version number here
+# Update version number here AND in pom.xml (<version> and <scm><tag>)
 # `make`
 # Push changes to Github
 # Create version tag on Github
 
 ALL: jar deploy
 
+# Use the version chosen in Step 11. Placeholder shown — replace with
+# the actual version string (e.g., "0.7.0" or "1.0.0") before running.
 jar:
-	clojure -T:build jar :version '"0.6.0"'
+	clojure -T:build jar :version '"<X.Y.Z>"'
 
 compile-java:
 	clojure -T:build compile-java
@@ -555,8 +630,12 @@ NOTICE.md whenever bumping `nebula-sha`.
 A tiny example project showing a client compiling their own Java/SWT
 widget using `ui.build.swt`. Minimal contents:
 
-- `deps.edn` — declares `io.github.coconutpalm/clojure-desktop-toolkit`
-  as a dep, plus `:build` alias mirroring CDT's.
+- `deps.edn` — declares CDT as a `:local/root` dep pointing at the
+  parent CDT checkout (`{:local/root "../.."}`). Using `:local/root`
+  instead of a versioned Maven coord avoids re-pinning every CDT
+  release and lets the example track CDT-in-development without an
+  intermediate `b/install` step. The example also adds a `:build`
+  alias mirroring CDT's.
 - `build.clj` — uses `swt-build/javac-with-swt` to compile
   `java-src/`.
 - `java-src/com/example/HelloLabel.java` — a trivial
@@ -564,7 +643,9 @@ widget using `ui.build.swt`. Minimal contents:
 - `src/example/main.clj` — `(:require [ui.nebula])` to bootstrap SWT,
   then uses `HelloLabel`.
 - `README.md` — 1-paragraph explanation of what the example
-  demonstrates.
+  demonstrates, including a note that a published-version variant
+  (using `:mvn/version` instead of `:local/root`) is the form
+  downstream users would write.
 
 ## Implementation sequence
 
@@ -601,15 +682,17 @@ REPL (use a temporary `:build` alias to load tools.build):
 
 Implement `build.clj` with `clean`, `jar` (Nebula-free for now — skip
 the `compile-java` call inside `jar` temporarily), and the
-`update-vendored-nebula` task. Pin `nebula-sha` to a recent Nebula
-release tag SHA (per pre-flight check 4). Add the `:build` alias to
-`deps.edn`. Remove `:jar` and `:deploy` aliases. Update `Makefile`.
+`update-vendored-nebula` task. Pin `nebula-sha` to the audited SHA
+(per pre-flight check 4). Add the `:build` alias to `deps.edn`. Remove
+`:jar` and `:deploy` aliases. Update `Makefile`.
+
+Do NOT invoke `update-vendored-nebula` yet — it slurps
+`nebula-sources.edn` which doesn't exist until Step 3a.
 
 Run `make jar`. Confirm it produces a JAR functionally equivalent to
-today's depstar output. Run verification steps 4 (no SWT classes in
-JAR), 5 (pom is SWT-free), 6 (consumer dep tree is SWT-free) from
-`compile-java-swt-widgets-context.md`. **If anything regressed, fix
-before continuing.**
+today's depstar output. Run verification steps 3 (no SWT classes in
+JAR), 5 (pom is SWT-free), 6 (consumer dep tree is SWT-free). **If
+anything regressed, fix before continuing.**
 
 ### Step 3a. Vendor a seed manifest
 
@@ -733,9 +816,21 @@ multiple places). Options:
   capability (Nebula widgets + reusable Java compilation helper).
 
 Confirm the choice with the user before editing version strings.
-Bumps land in: `Makefile` (the `:version` arg to `clojure -T:build
-jar`), `pom.xml` (`<version>` element), the `:version` field in any
-generated artifacts, and the new "New and Noteworthy" doc filename.
+Bumps land in:
+
+- `Makefile` (the `:version` arg to `clojure -T:build jar`, replacing
+  the `<X.Y.Z>` placeholder).
+- `pom.xml` **both** `<version>` and `<scm><tag>` elements (currently
+  `0.5.1` and `v0.5.1` respectively — pre-existing skew from
+  `Makefile` 0.6.0, see pre-flight check 6).
+- The `:version` field in any generated artifacts.
+- The new "New and Noteworthy" doc filename.
+- The README's "New and Noteworthy" bullet link target.
+
+There is no automation to keep `Makefile` and `pom.xml` versions in
+sync. Both must be edited by hand. Consider adding a `make
+check-versions` target in a follow-up to lint for drift, but that's
+out of scope for this plan.
 
 #### New and Noteworthy page (follows existing project convention)
 
@@ -791,6 +886,21 @@ widgets. Document that `vendor/nebula/` is a filtered upstream
 mirror — contributors should NOT edit those files by hand (use
 `update-vendored-nebula` instead).
 
+Add a **"Dev REPL workflow for Nebula widgets"** subsection. Nebula
+classes only land in `target/classes` after `make compile-java` (or
+`make jar`). The `:dev` alias does NOT auto-compile Java sources, so
+to use Nebula at the REPL you must either:
+
+1. Run `make compile-java` once, then start the REPL with
+   `clojure -M:dev -Sdeps '{:paths ["target/classes"]}'` (extends
+   classpath without re-running tools.build), OR
+2. Install the JAR locally via `clojure -T:build install` and depend
+   on it from a separate scratch project.
+
+Option 1 is the recommended workflow for active CDT development —
+edit `.java` sources, re-run `make compile-java`, restart REPL.
+Option 2 better mirrors what downstream consumers will do.
+
 #### NOTICE.md
 
 EPL-2.0 attribution as described above. Reference the pinned SHA
@@ -816,25 +926,193 @@ At this point:
 
 ## Verification (full)
 
-See the **Verification** section of
-`/Users/dorme/.claude/plans/carefully-analyze-this-code-snoopy-planet.md`
-for the full 10-step verification suite. Critical steps that must pass
-before merging:
+Ten steps, run in order during the implementation sequence. Steps
+marked **(gate)** must pass before merging — they are the contract
+this v1 plan promises to honor. Other steps are confidence checks.
 
-- **3a**: `target/build-deps/java-src/` contains no
-  `org/eclipse/nebula/jface/` paths, no `*/jface*` subdirectories
-  under widget packages, no `*/viewer` or `*/viewers` subdirectories
-  under widget packages, and none of the explicitly listed
-  `:exclude-files` paths (e.g., `DateChooser*CellEditor.java`,
-  `FormattedText*ObservableValue.java`).
-- **3b**: No compiled class in the JAR references
+### Step 1. JAR is produced
+
+```
+ls -lh target/clojure-desktop-toolkit-<X.Y.Z>.jar
+```
+
+Expected: file exists. Size is at least a few MB once Nebula classes
+land (the six SWT zips ride along as resources and dominate size).
+
+### Step 2. Published pom has correct metadata
+
+```
+unzip -p target/clojure-desktop-toolkit-<X.Y.Z>.jar \
+  META-INF/maven/io.github.coconutpalm/clojure-desktop-toolkit/pom.xml \
+  | grep -E "<(groupId|artifactId|version)>" | head -6
+```
+
+Expected: top-level `<groupId>io.github.coconutpalm</groupId>`,
+`<artifactId>clojure-desktop-toolkit</artifactId>`, and `<version>`
+matching the build argument.
+
+### Step 3. JAR does not bundle loose SWT classes
+
+```
+jar tf target/clojure-desktop-toolkit-<X.Y.Z>.jar \
+  | grep -E '^org/eclipse/swt/' | wc -l
+```
+
+Expected: `0`. The SWT zips are resources; no `.class` from SWT
+should be loose in the JAR. Without this guarantee a consumer might
+get classpath collisions between the bundled SWT and their host
+platform's SWT JAR.
+
+### Step 3a. Source staging excluded everything we asked it to **(gate)**
+
+After `clojure -T:build compile-java` runs `stage-nebula-sources`:
+
+```
+find target/build-deps/java-src -path "*/org/eclipse/nebula/jface/*"
+find target/build-deps/java-src -path "*/viewer/*"
+find target/build-deps/java-src -path "*/viewers/*"
+find target/build-deps/java-src \
+   -name "DateChooser*CellEditor.java" -o \
+   -name "DateChooser*ObservableValue.java" -o \
+   -name "FormattedTextCellEditor.java" -o \
+   -name "FormattedTextObservableValue.java"
+```
+
+Expected: all four commands print nothing. If any matches, the
+`:ignores` regex (or `:include` glob) didn't fire for that exclusion.
+**P0 — fix before continuing**. Empirically determine the correct
+regex/glob form for the pinned tools.build version. If
+`b/copy-dir :ignores`/`:include` is fundamentally unsuitable, replace
+`stage-nebula-sources` with `fs/walk-file-tree`.
+
+### Step 3b. No JFace / core.runtime references in compiled classes **(gate)**
+
+```
+for f in $(find target/classes -name "*.class"); do
+  javap -c -p "$f" 2>/dev/null
+done | grep -E 'org/eclipse/(jface|core/runtime)' | wc -l
+```
+
+Expected: `0`. Any non-zero count means source staging let through
+a file with disallowed imports. **Stop and investigate before adding
+more widgets.** The critical correctness invariant of v1 is that the
+shipped JAR contains zero non-SWT Eclipse class references.
+
+### Step 4. Bytecode targets JDK 17
+
+```
+javap -v target/classes/org/eclipse/nebula/widgets/opal/commons/SWTGraphicUtil.class \
+  | grep "major version"
+```
+
+Expected: `major version: 61` (JDK 17 class-file format). A different
+number means `--release 17` wasn't applied, or javac picked the wrong
+target.
+
+### Step 5. Published pom is SWT-free **(gate)**
+
+```
+unzip -p target/clojure-desktop-toolkit-<X.Y.Z>.jar \
+  META-INF/maven/io.github.coconutpalm/clojure-desktop-toolkit/pom.xml \
+  | grep -A1 "org.eclipse.swt"
+```
+
+Expected: no output. SWT must not appear as a dependency in the
+published pom. If it does, the publish-basis leaked SWT into
+`b/write-pom` — verify `publish-basis` is a plain
+`b/create-basis {:project "deps.edn"}` call with no `:extra`.
+
+### Step 6. Consumer dep tree is SWT-free **(gate)**
+
+From a sibling project depending on CDT:
+
+```
+clojure -X:deps tree | grep -i swt
+```
+
+Expected: no output. CDT's contract — "depend on CDT, you get SWT
+for free, you never know about it" — fails the moment a consumer
+sees SWT in their dep tree.
+
+### Step 7. Smoke test — widgets render **(gate)**
+
+In a REPL with the new JAR on classpath:
+
+```clojure
+(require '[ui.nebula])
+(ui.nebula/ensure-loaded!)       ;; => :ok
+(require '[ui.SWT :as ui])
+;; Build a shell containing PShelf (Tier 3a) and one opal widget
+;; (e.g., LED — Tier 2). Use the SWT-UI-RULES.md screenshot workflow
+;; to capture the window.
+```
+
+Expected: widgets render correctly with no exceptions. Save the
+screenshot as evidence. Smoke at minimum: one Tier 1, one Tier 2,
+one Tier 3a, one Tier 3b.
+
+### Step 8. Load-order contract **(gate)**
+
+Three sub-checks:
+
+1. **With** `(:require [ui.nebula])` first, then
+   `(Class/forName "org.eclipse.nebula.widgets.pshelf.PShelf")`
+   succeeds.
+2. **Without** the require (cold REPL), the same `Class/forName`
+   fails with a `NoClassDefFoundError` naming an SWT class. This
+   proves `ui.nebula` is the load-order gate.
+3. **JDK fail-fast**: on a JDK 16 (or older) JVM, `(require
+   '[ui.nebula])` throws `IllegalStateException` with a message
+   naming the JDK 17 floor — NOT a cryptic
+   `UnsupportedClassVersionError` from class loading.
+
+### Step 9. Cross-platform spot check
+
+Build on the host platform. Copy the JAR to a different-platform
+machine (or a Docker container with the matching native SWT support)
+and re-run Step 7. Confirms bytecode portability.
+
+Fallback if no different-platform machine is accessible:
+
+```
+javap -v target/classes/org/eclipse/nebula/widgets/pshelf/PShelf.class \
+  | grep -E '(major version|org/eclipse/swt)' | head
+```
+
+Expected: `major version: 61` plus constant-pool entries referencing
+SWT classes by symbolic name (e.g., `org/eclipse/swt/widgets/Composite`).
+Combined with Step 4, this gives high confidence the bytecode is
+truly platform-independent.
+
+### Step 10. Reusability example builds
+
+```
+cd examples/java-widget
+clojure -T:build jar
+jar tf target/java-widget.jar | grep HelloLabel
+```
+
+Expected: `com/example/HelloLabel.class` listed. Proves
+`ui.build.swt/javac-with-swt` works for downstream clients — the
+core promise of "reusable by client projects."
+
+### Gate items summary
+
+The following must pass before merging:
+
+- **3a**: staged tree contains no `org/eclipse/nebula/jface/` paths,
+  no `*/viewer*` subdirectories, and none of the listed
+  `:exclude-files` paths (`DateChooser*CellEditor.java`,
+  `FormattedText*ObservableValue.java`, etc.).
+- **3b**: no compiled class references
   `org/eclipse/jface/` or `org/eclipse/core/runtime/`.
-- **5**: Published pom contains no SWT entry.
-- **6**: Consumer dep tree contains no SWT entry.
-- **7**: PShelf and at least one opal widget render in a SWT shell.
-- **8**: `ui.nebula` ensures correct load order; bypass produces the
-  documented NoClassDefFoundError. The JDK fail-fast check throws
-  with a clear message on JDK <17.
+- **5**: published pom contains no SWT entry.
+- **6**: consumer dep tree contains no SWT entry.
+- **7**: PShelf, an opal widget, plus a Tier 1 and Tier 3b widget
+  render in a SWT shell.
+- **8**: `ui.nebula` enforces load order; bypass produces the
+  documented `NoClassDefFoundError`; JDK fail-fast check throws a
+  clear message on JDK <17.
 
 ## Risks (full)
 
@@ -845,9 +1123,12 @@ See **Risks** in the source plan. Recap of the top items:
    by Nebula's `grid` and `chips` widgets (`Bundle-RequiredExecutionEnvironment: JavaSE-17`).
 2. **OSGi-expecting runtime code paths** in opal.commons. Smoke-test
    each widget; drop offenders from the manifest.
-3. **`b/copy-dir :ignores` semantics**. Verify empirically in step 4
-   for BOTH `:exclude-pkgs` (package-level) and `:exclude-files`
-   (file-level) patterns. Fall back to manual walk if needed.
+3. **`b/copy-dir :ignores` and `:include` semantics**. Verify
+   empirically in step 4 that `:ignores` regexes fire for BOTH
+   `:exclude-pkgs` (package-level) and `:exclude-files` (file-level)
+   patterns, AND that the `:include "**/*.java"` glob picks up the
+   expected Java sources without false negatives. Fall back to manual
+   `fs/walk-file-tree` if either misbehaves.
 4. **License compliance**. Add `NOTICE.md` with Nebula/SWT
    attribution referencing the pinned SHA from
    `vendor/nebula/VERSION`.
@@ -905,3 +1186,213 @@ of this plan**:
 - Changing CDT's public API surface in `ui.SWT.clj`.
 - AOT compilation of Clojure namespaces (CDT is REPL-driven, no AOT
   by design).
+
+---
+
+## Option 4 addendum (2026-05-27): bundle Nebula as a separate inner JAR
+
+Read the **"The runtime classloader problem"** section of the context
+file first. The summary: shipping loose Nebula `.class` files inside the
+CDT JAR doesn't survive `ClassNotFoundException` at runtime because the
+CDT JAR sits on the parent `AppClassLoader` while pomegranate-added SWT
+sits on a child `DynamicClassLoader`, and parent loaders can't see
+child loaders. Option 4 fixes this by extracting Nebula at runtime onto
+the same classloader as SWT.
+
+### File-by-file changes
+
+#### Modified: `build.clj`
+
+- Add a new path constant: `(def nebula-class-dir "target/nebula-classes")`.
+- `compile-java` outputs to `nebula-class-dir` (NOT `class-dir`). The
+  staging step is unchanged.
+- New task `nebula-jar`:
+  ```clojure
+  (defn nebula-jar [{:keys [version]}]
+    (b/jar {:class-dir nebula-class-dir
+            :jar-file  (format "target/nebula-%s.jar" version)}))
+  ```
+- `jar` task sequence:
+  1. `clean`
+  2. `compile-java` → populates `target/nebula-classes/`
+  3. `nebula-jar` → produces `target/nebula-<version>.jar`
+  4. Copy `target/nebula-<version>.jar` to `class-dir/nebula.jar`
+     (single canonical name inside the published JAR — version-less so
+     `ui.nebula`'s extractor doesn't need to know the version).
+  5. `b/copy-dir {:src-dirs ["src" "resources"] :target-dir class-dir}`
+  6. `b/write-pom` (unchanged; still SWT-free)
+  7. `b/jar {:class-dir class-dir :jar-file (jar-file version)}`
+- The published CDT JAR layout becomes:
+  ```
+  org/                          ← only ui/* clojure source classes
+  ui/SWT.clj, ui/nebula.clj, ...
+  swt-4.38-<six>.zip            ← SWT platform bundles
+  nebula.jar                    ← NEW: the compiled Nebula bytecode
+  META-INF/maven/.../pom.xml
+  ```
+- **Key contract**: no `org/eclipse/nebula/**` `.class` files appear
+  directly in the JAR. Verification step 3b's `jar tf | grep ^org/eclipse/nebula`
+  should return 0.
+
+#### Modified: `src/ui/nebula.clj`
+
+This namespace gains the runtime extractor analogous to
+`ui.internal.SWT-deps`. Body order:
+
+```clojure
+(ns ui.nebula
+  "..."
+  (:require [babashka.fs :as fs]
+            [cemerick.pomegranate :as pom]
+            [clojure.java.io :as io]
+            [clojure.string :as str]
+            [ui.internal.SWT-deps])     ; forces SWT to be on the loader first
+  (:import [java.io File]))
+
+;; JDK 17 fail-fast — unchanged
+(defn- jdk-major-version [] ...)
+(when (< (jdk-major-version) 17) (throw ...))
+
+(defn- extract-nebula!
+  "Extract the bundled `nebula.jar` resource to a tmp dir, then add it
+   to the classloader via pomegranate. Idempotent via defonce. Returns
+   the extracted java.io.File for the jar."
+  []
+  (let [tmpdir (File. (str (fs/create-temp-dir)))
+        target (File. tmpdir "nebula.jar")]
+    (.deleteOnExit tmpdir)
+    (with-open [in  (-> "nebula.jar" io/resource io/input-stream)
+                out (io/output-stream target)]
+      (io/copy in out))
+    (pom/add-classpath target)
+    target))
+
+(defonce nebula-jar (extract-nebula!))
+
+;; Now that Nebula classes are on the classloader, load ui.SWT — its
+;; reflectivity scan will pick up both SWT and Nebula widgets, and
+;; `define-inits` will auto-generate init fns for both. Consumers that
+;; require ui.nebula get `pshelf`, `pshelf-item`, etc. in ui.SWT.
+(require '[ui.SWT])
+
+(defn ensure-loaded! [] ...)  ; unchanged
+```
+
+Critical detail: the `require '[ui.SWT]` is in the **body** of the
+namespace, not in the `(ns ...)` form's `:require`. This lets the
+extraction run first.
+
+#### Modified: `src/ui/internal/reflectivity.clj`
+
+The 2026-05-27 fix to `classpath-urls` (explicit `java.class.path`
+URLs + SWT jar URL) is retained. **Add** the Nebula jar to the URL
+set the same way:
+
+```clojure
+(defn- classpath-urls []
+  (let [from-cp     (->> (str/split (System/getProperty "java.class.path") ...) ...)
+        swt-jar-url (-> swt-deps/swt :jar .toURI .toURL)
+        nebula-url  (when-let [nj (try (resolve 'ui.nebula/nebula-jar) (catch Throwable _ nil))]
+                      (some-> @nj .toURI .toURL))]
+    (cond-> (conj from-cp swt-jar-url)
+      nebula-url (conj nebula-url))))
+```
+
+The `try/resolve` dance is so reflectivity doesn't have a hard
+dependency on `ui.nebula` — consumers that only use SWT shouldn't be
+forced to load Nebula. (`ui.nebula` itself transitively loads
+reflectivity via the `(require '[ui.SWT])` call, after the Nebula JAR
+is extracted, so the resolve succeeds.)
+
+#### Deferred to v0.8.0: `examples/java-widget/`
+
+Rename the directory to `examples/java-widget.deferred/` and replace
+its README with a short note explaining the classloader-split issue
+that blocks downstream-client Java widget compilation in v1. Reference
+the context doc's "Runtime classloader problem" section. Keep the
+source so the future PR has a starting point.
+
+#### Modified: `examples/nebula-widget/`
+
+- `deps.edn` returns to the plan's original `:local/root "../.."` for
+  CDT in dev (or `:mvn/version "0.7.0"` for downstream-facing
+  documentation), with NO explicit `org.eclipse.swt/swt` dep.
+- `src/example/main.clj` uses the canonical starter pattern: install
+  a `DynamicClassLoader` as context loader, bind `*repl* true`,
+  require `example.ui`, and `eval`-call into it.
+- `src/example/ui.clj` requires `ui.nebula` (which transitively loads
+  ui.SWT after extracting the Nebula JAR), then uses `pshelf`,
+  `pshelf-item`, `label`, etc. directly.
+- The `body` helper (PShelfItem's `.getBody`-injection wrapper) stays.
+
+#### Modified: README.md / CLAUDE.md / version-0.7.0.md
+
+- Remove the "Compiling your own Java/SWT widgets" sections — that
+  story is deferred to v0.8.0. Replace with a short pointer to the
+  deferred example explaining the classloader trade-off.
+- Update the "Using bundled Eclipse Nebula widgets" section to note
+  the load-order contract: `(:require [ui.nebula])` BEFORE `ui.SWT`
+  is necessary so the reflective `define-inits` sees Nebula
+  widgets when it runs.
+
+### Implementation sequence (Option 4)
+
+13. Edit `build.clj`:
+    - Split `compile-java` to output to `target/nebula-classes/`.
+    - Add `nebula-jar` task producing `target/nebula-<version>.jar`.
+    - Update `jar` task to call `nebula-jar`, then copy the result to
+      `target/classes/nebula.jar`, then do the existing source+pom+jar
+      steps.
+    - Verify with `make jar` then `jar tf` that the published JAR
+      contains `nebula.jar` and NO `org/eclipse/nebula/**` `.class`
+      files.
+
+14. Edit `src/ui/nebula.clj`:
+    - Add `extract-nebula!` + `defonce nebula-jar`.
+    - Move `(require '[ui.SWT])` into the namespace body, after
+      extraction.
+    - Keep JDK 17 fail-fast at the top (before extraction so the error
+      message is clear).
+
+15. Edit `src/ui/internal/reflectivity.clj`:
+    - Add Nebula JAR URL to `classpath-urls` via a soft resolve of
+      `ui.nebula/nebula-jar` so reflectivity doesn't hard-depend on
+      ui.nebula.
+
+16. `make install` and verify in a fresh JVM (no `:local/root` SWT):
+    ```
+    cd examples/nebula-widget && make run
+    ```
+    The PShelf window must render. Capture a screenshot
+    via the dev/screenshot.clj variant for evidence.
+
+17. Move `examples/java-widget/` → `examples/java-widget.deferred/`.
+    Replace its README with a 10-line note pointing at the context
+    doc's "Runtime classloader problem" section.
+
+18. Update README.md, CLAUDE.md, `docs/new-and-noteworthy/version-0.7.0.md`
+    to reflect the deferral and the new load-order contract.
+
+### Verification gates (Option 4 additions)
+
+- **G-O4-A** (replaces gate 3b): `jar tf target/clojure-desktop-toolkit-<v>.jar | grep '^org/eclipse/nebula/.*\.class$' | wc -l` returns `0`. The published JAR contains `nebula.jar` (as a resource) — NOT loose Nebula `.class` files.
+- **G-O4-B**: `jar tf target/clojure-desktop-toolkit-<v>.jar | grep nebula.jar` returns `nebula.jar` (the inner JAR is present).
+- **G-O4-C**: From a fresh JVM with only `clojure-desktop-toolkit {:mvn/version "0.7.0"}` on classpath (no `:local/root` SWT), `(require '[ui.nebula] '[ui.SWT])` followed by `(resolve 'ui.SWT/pshelf)` returns a non-nil Var.
+- **G-O4-D**: `cd examples/nebula-widget && make run` renders the PShelf window. Screenshot in the verification artifacts.
+
+### Risks
+
+- **Resource extraction performance**: the Nebula JAR is read from
+  inside the CDT JAR and re-copied to a temp dir at every JVM start.
+  This is fine for typical applications (a few MB, done once). If
+  startup latency becomes a concern, switch `pom/add-classpath` to
+  load the JAR via a JarFile-backed URL pointing into the CDT JAR
+  directly (avoids the copy) — but `add-classpath` expects
+  filesystem paths, so the copy is the simplest correct path.
+
+- **Reflectivity's optional Nebula scan via `try/resolve`**: if any
+  load-order regression causes `ui.nebula/nebula-jar` to exist before
+  `nebula-jar` itself is extracted, reflectivity will get a nil URL
+  and silently skip Nebula. Mitigated by the `defonce` ordering in
+  `ui.nebula` and a small `pre-load-test` in dev/ that asserts
+  PShelf shows up in `swt-composites` after `(require '[ui.nebula])`.

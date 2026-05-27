@@ -1,0 +1,124 @@
+;; Eclipse Nebula widget manifest. Paths are relative to vendor/nebula/.
+;; :tier is informational only. :exclude-pkgs / :exclude-files are the
+;; only fields the build branches on.
+;;
+;; Audit instruction (run before make jar after expanding/bumping):
+;;   1. Confirm vendor/nebula/<:src> exists.
+;;   2. Run:
+;;        grep -rhE '^import org\.eclipse\.' vendor/nebula/<:src> | sort -u
+;;      and confirm non-SWT imports match the declared tier:
+;;        Tier 1 -> zero non-SWT imports
+;;        Tier 2 -> only org.eclipse.nebula.widgets.opal.commons.*
+;;        Tier 3a -> non-SWT imports only inside listed :exclude-pkgs dirs
+;;        Tier 3b -> non-SWT imports only inside listed :exclude-files
+;;   3. Mismatch -> drop the entry with an inline comment; surface to user.
+
+{;; Foundation bundles (intra-nebula, pure SWT — required by other widgets)
+ :opal.commons        {:src  "widgets/opal/commons/org.eclipse.nebula.widgets.opal.commons/src"
+                       :tier 2}
+ :cwt                 {:src  "widgets/cwt/org.eclipse.nebula.cwt/src"
+                       :tier 2}
+
+ ;; Tier 1 — pure SWT, no other Nebula deps
+ ;; :bidilayout — DROPPED (2026-05-26 audit): imports
+ ;; `org.eclipse.swt.internal.win32` (Windows-only SWT internal package
+ ;; not present in cocoa/gtk SWT jars). The plan's "any-platform
+ ;; SWT compiles for all" insight applies to the public API; internal
+ ;; per-platform packages break it. Bidilayout is a Windows-only widget
+ ;; anyway (SWT handles BiDi natively on macOS/Linux). Defer to v2 or
+ ;; ship via a Windows-only sub-JAR if there's demand.
+ :calendarcombo       {:src "widgets/calendarcombo/org.eclipse.nebula.widgets.calendarcombo/src" :tier 1}
+ :cdatetime           {:src "widgets/cdatetime/org.eclipse.nebula.widgets.cdatetime/src" :tier 1}
+ :collapsiblebuttons  {:src "widgets/collapsiblebuttons/org.eclipse.nebula.widgets.collapsiblebuttons/src" :tier 1}
+ :commons             {:src "widgets/commons/org.eclipse.nebula.widgets.commons/src" :tier 1}
+ :ctree               {:src "widgets/ctree/org.eclipse.nebula.widgets.ctree/src" :tier 1}
+ :floatingtext        {:src "widgets/floatingtext/org.eclipse.nebula.widgets.floatingtext/src" :tier 1}
+ :fontawesome         {:src "widgets/fontawesome/org.eclipse.nebula.widgets.fontawesome/src" :tier 1}
+ :ganttchart          {:src "widgets/ganttchart/org.eclipse.nebula.widgets.ganttchart/src" :tier 1}
+ :nebulatoolbar       {:src "widgets/nebulatoolbar/org.eclipse.nebula.widgets.nebulatoolbar/src" :tier 1}
+ :oscilloscope        {:src "widgets/oscilloscope/org.eclipse.nebula.widgets.oscilloscope/src" :tier 1}
+ :pgroup              {:src "widgets/pgroup/org.eclipse.nebula.widgets.pgroup/src" :tier 1}
+ :progresscircle      {:src "widgets/progresscircle/org.eclipse.nebula.widgets.progresscircle/src" :tier 1}
+ :splitbutton         {:src "widgets/splitbutton/org.eclipse.nebula.widgets.splitbutton/src" :tier 1}
+ :tiles               {:src "widgets/tiles/org.eclipse.nebula.widgets.tiles/src" :tier 1}
+
+ ;; Tier 2 — pure SWT + opal.commons
+ :badgedlabel         {:src "widgets/opal/badgedlabel/org.eclipse.nebula.widgets.opal.badgedlabel/src" :tier 2}
+ :breadcrumb          {:src "widgets/opal/breadcrumb/org.eclipse.nebula.widgets.opal.breadcrumb/src" :tier 2}
+ :calculator          {:src "widgets/opal/calculator/org.eclipse.nebula.widgets.opal.calculator/src" :tier 2}
+ :carousel            {:src "widgets/opal/carousel/org.eclipse.nebula.widgets.opal.carousel/src" :tier 2}
+ :checkboxgroup       {:src "widgets/opal/checkboxgroup/org.eclipse.nebula.widgets.opal.checkboxgroup/src" :tier 2}
+ :chips               {:src "widgets/opal/chips/org.eclipse.nebula.widgets.opal.chips/src" :tier 2}
+ :columnbrowser       {:src "widgets/opal/columnbrowser/org.eclipse.nebula.widgets.opal.columnbrowser/src" :tier 2}
+ :dialog              {:src "widgets/opal/dialog/org.eclipse.nebula.widgets.opal.dialog/src" :tier 2}
+ :duallist            {:src "widgets/opal/duallist/org.eclipse.nebula.widgets.opal.duallist/src" :tier 2}
+ :header              {:src "widgets/opal/header/org.eclipse.nebula.widgets.opal.header/src" :tier 2}
+ :heapmanager         {:src "widgets/opal/heapmanager/org.eclipse.nebula.widgets.opal.heapmanager/src" :tier 2}
+ :horizontalspinner   {:src "widgets/opal/horizontalspinner/org.eclipse.nebula.widgets.opal.horizontalspinner/src" :tier 2}
+ :launcher            {:src "widgets/opal/launcher/org.eclipse.nebula.widgets.opal.launcher/src" :tier 2}
+ ;; LED lives at widgets/led/, NOT widgets/opal/led/ — the plan's manifest
+ ;; had the path under opal, but upstream classes are
+ ;; `org.eclipse.nebula.widgets.led.LED` (not `opal.led.Led`). It is still
+ ;; Tier 2 (uses opal.commons).
+ :led                 {:src "widgets/led/org.eclipse.nebula.widgets.led/src" :tier 2}
+ :logindialog         {:src "widgets/opal/logindialog/org.eclipse.nebula.widgets.opal.logindialog/src" :tier 2}
+ :multichoice         {:src "widgets/opal/multichoice/org.eclipse.nebula.widgets.opal.multichoice/src" :tier 2}
+ :nebulaslider        {:src "widgets/opal/nebulaslider/org.eclipse.nebula.widgets.opal.nebulaslider/src" :tier 2}
+ :notifier            {:src "widgets/opal/notifier/org.eclipse.nebula.widgets.opal.notifier/src" :tier 2}
+ :panels              {:src "widgets/opal/panels/org.eclipse.nebula.widgets.opal.panels/src" :tier 2}
+ :passwordrevealer    {:src "widgets/opal/passwordrevealer/org.eclipse.nebula.widgets.opal.passwordrevealer/src" :tier 2}
+ :preferencewindow    {:src "widgets/opal/preferencewindow/org.eclipse.nebula.widgets.opal.preferencewindow/src" :tier 2}
+ :promptsupport       {:src "widgets/opal/promptsupport/org.eclipse.nebula.widgets.opal.promptsupport/src" :tier 2}
+ :propertytable       {:src "widgets/opal/propertytable/org.eclipse.nebula.widgets.opal.propertytable/src" :tier 2}
+ :rangeslider         {:src "widgets/opal/rangeslider/org.eclipse.nebula.widgets.opal.rangeslider/src" :tier 2}
+ :roundedcheckbox     {:src "widgets/opal/roundedcheckbox/org.eclipse.nebula.widgets.opal.roundedcheckbox/src" :tier 2}
+ :roundedswitch       {:src "widgets/opal/roundedswitch/org.eclipse.nebula.widgets.opal.roundedswitch/src" :tier 2}
+ :starrating          {:src "widgets/opal/starrating/org.eclipse.nebula.widgets.opal.starrating/src" :tier 2}
+ :stepbar             {:src "widgets/opal/stepbar/org.eclipse.nebula.widgets.opal.stepbar/src" :tier 2}
+ :switchbutton        {:src "widgets/opal/switchbutton/org.eclipse.nebula.widgets.opal.switchbutton/src" :tier 2}
+ :textassist          {:src "widgets/opal/textassist/org.eclipse.nebula.widgets.opal.textassist/src" :tier 2}
+ :tipoftheday         {:src "widgets/opal/tipoftheday/org.eclipse.nebula.widgets.opal.tipoftheday/src" :tier 2}
+ :titledseparator     {:src "widgets/opal/titledseparator/org.eclipse.nebula.widgets.opal.titledseparator/src" :tier 2}
+
+ ;; Tier 3a — pure SWT after excluding optional JFace adapter subpackage(s)
+ :pshelf              {:src          "widgets/pshelf/org.eclipse.nebula.widgets.pshelf/src"
+                       :tier         3
+                       :exclude-pkgs ["org/eclipse/nebula/jface/pshelfviewer"]}
+ :compositetable      {:src          "widgets/compositetable/org.eclipse.nebula.widgets.compositetable/src"
+                       :tier         3
+                       :exclude-pkgs ["org/eclipse/nebula/widgets/compositetable/viewers"]}
+ :ctreecombo          {:src          "widgets/ctreecombo/org.eclipse.nebula.widgets.ctreecombo/src"
+                       :tier         3
+                       :exclude-pkgs ["org/eclipse/nebula/widgets/ctreecombo/viewer"]}
+ :gallery             {:src          "widgets/gallery/org.eclipse.nebula.widgets.gallery/src"
+                       :tier         3
+                       :exclude-pkgs ["org/eclipse/nebula/jface/galleryviewer"]}
+ ;; :geomap — DROPPED (2026-05-26 audit): core widget package imports
+ ;; org.eclipse.draw2d.{FigureCanvas, Graphics, ImageFigure,
+ ;; geometry.Dimension}. Draw2D is a separate Eclipse runtime bundle.
+ ;; Reclassify as Tier 4; defer to v2 with the P2 fetcher.
+ :grid                {:src          "widgets/grid/org.eclipse.nebula.widgets.grid/src"
+                       :tier         3
+                       :exclude-pkgs ["org/eclipse/nebula/jface/gridviewer"]}
+ ;; :radiogroup — DROPPED (2026-05-26 audit): core widget package imports
+ ;; org.eclipse.ui.forms.widgets.FormToolkit. The Eclipse Forms bundle
+ ;; is an additional platform dep beyond SWT/JFace. Reclassify as
+ ;; Tier 4; defer to v2.
+ :tablecombo          {:src          "widgets/tablecombo/org.eclipse.nebula.widgets.tablecombo/src"
+                       :tier         3
+                       :exclude-pkgs ["org/eclipse/nebula/jface/tablecomboviewer"
+                                      "org/eclipse/nebula/jface/checktablecomboviewer"]}
+
+ ;; Tier 3b — pure SWT after excluding specific JFace helper files.
+ ;;
+ ;; AUDIT NOTE (2026-05-26): `datechooser` was originally proposed but
+ ;; FAILED audit — `DateChooser.java` itself (the core widget file)
+ ;; imports `org.eclipse.jface.layout.GridDataFactory` and
+ ;; `GridLayoutFactory`, and transitively pulls in
+ ;; `org.eclipse.nebula.widgets.formattedtext.*`. Cannot ship as
+ ;; pure-SWT in v1. Deferred to v2. `formattedtext` likely shares the
+ ;; same fate (datechooser depends on it) — audit during expansion.
+ :formattedtext       {:src           "widgets/formattedtext/org.eclipse.nebula.widgets.formattedtext/src"
+                       :tier          3
+                       :exclude-files ["org/eclipse/nebula/widgets/formattedtext/FormattedTextCellEditor.java"
+                                       "org/eclipse/nebula/widgets/formattedtext/FormattedTextObservableValue.java"]}}

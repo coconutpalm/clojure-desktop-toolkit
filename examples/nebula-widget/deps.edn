@@ -1,0 +1,12 @@
+{:paths ["src" "resources"]
+
+ ;; Depend on a locally-installed CDT JAR (run `make install` in the
+ ;; parent CDT directory first). Downstream users would target the
+ ;; published Clojars/Nexus version here.
+ :deps {org.clojure/clojure {:mvn/version "1.12.0"}
+        io.github.coconutpalm/clojure-desktop-toolkit {:mvn/version "0.7.0"}}
+
+ :aliases
+ {:dev {:paths ["src" "resources" "dev"]}
+
+  :run {:main-opts ["-m" "example.main"]}}}

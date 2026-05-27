@@ -104,6 +104,111 @@ These were verified via web search; treat them as ground truth:
   under `org.eclipse.platform/org.eclipse.swt.<ws>.<os>.<arch>`. We are
   NOT using Maven Central in v1 — we extract from the bundled ZIPs.
 
+## The runtime classloader problem (discovered 2026-05-27)
+
+The plan's first implementation assumed compiled Nebula `.class` files
+could ship loose under `org/eclipse/nebula/**` inside the published CDT
+JAR alongside Clojure source and the SWT zips. That assumption breaks
+at runtime in a way the build-time tests don't catch.
+
+**The symptom.** Consumers depending on `clojure-desktop-toolkit` as a
+normal Maven coord hit `ClassNotFoundException: org/eclipse/swt/widgets/Canvas`
+the first time they touch any Nebula widget — even though their app
+followed the `examples/starter/` pattern (DynamicClassLoader + `*repl*`
+binding) that works fine for SWT-only apps. Diagnostic evidence on
+2026-05-27:
+
+```
+PShelf.class on classpath?            true    ; Reflections sees the bytes
+Canvas loadable via current loader?   :yes    ; SWT is on the DynamicClassLoader
+PShelf load FAILED:                   org/eclipse/swt/widgets/Canvas
+```
+
+**The root cause is Java's standard parent-first delegation.** The CDT
+JAR sits on the JVM startup `java.class.path`, so it's owned by the
+`AppClassLoader`. When the JVM loads PShelf.class (a class file inside
+the CDT JAR), `AppClassLoader` defines it. Resolving PShelf's
+superclass `Canvas` then consults PShelf's defining loader —
+`AppClassLoader` — which delegates *upward* to the bootstrap loader,
+not downward to its `DynamicClassLoader` child. SWT lives on the child
+because that's the only loader pomegranate can modify, so `Canvas`
+isn't findable from the parent's perspective. PShelf is fully defined
+but unusable.
+
+The SWT-only starter pattern doesn't hit this because every SWT widget
+is defined by the same `DynamicClassLoader` that holds `swt.jar` — no
+cross-loader hops occur. Bundling pre-compiled Java widgets that
+*reference* SWT into the CDT JAR is what breaks the model.
+
+### The four options considered
+
+1. **Statically declare SWT in the consumer's `deps.edn` (as a
+   `:local/root` or `:mvn/version`).** Smallest delta — pre-extract
+   `swt.jar` and add it to `:deps`. SWT then lives on the AppClassLoader
+   alongside CDT, so PShelf-on-AppClassLoader can resolve Canvas. **Rejected**
+   because the bundled SWT is platform-specific (six different ZIPs);
+   you can't pin one `:local/root` path and have it work cross-platform.
+   That's the whole reason CDT extracts SWT at runtime in the first
+   place. Putting SWT in `deps.edn` either fails portability or
+   resurrects the old "depend on per-platform Maven coords" headache CDT
+   explicitly avoids.
+
+2. **Install a child-first classloader inside CDT and define the CDT
+   JAR's classes through it.** Then PShelf gets defined by the same
+   loader that holds SWT, and resolution works. Correct but **invasive**:
+   changes the CDT loader contract for every consumer, not just Nebula
+   users; risks breaking interactions with `add-libs`, REPL workflows,
+   and any consumer that re-shades CDT. Deferred to v0.8.0 or later if
+   needed.
+
+3. **Ship SWT as a real Maven dep instead of bundling it as a runtime
+   resource.** Breaks CDT's "depend on CDT, get SWT for free" contract.
+   Requires Maven Central SWT artifacts (patchy coverage, the reason CDT
+   bundles in the first place). **Rejected.**
+
+4. **Compile Nebula into its own JAR. Bundle `nebula-<version>.jar` as
+   a resource inside the CDT JAR alongside the six SWT ZIPs. At load
+   time, extract it to a tmp dir and pomegranate-add it to the same
+   `DynamicClassLoader` that holds SWT.** Nebula classes are then
+   defined by the same loader as SWT — no cross-loader resolution. The
+   classloader chain works the same way it does for SWT-only apps.
+   **Selected for v1.**
+
+### Trade-off of Option 4
+
+Option 4 keeps the runtime contract intact (consumers depend on CDT,
+they still don't know about SWT or Nebula details), but it costs the
+**downstream `ui.build.swt` story**. A client compiling their own
+Java/SWT widget against the CDT-bundled SWT (the `examples/java-widget/`
+pattern) hits the same parent-loader problem in reverse: the client's
+compiled widget lands on AppClassLoader (since it's in the client's
+project classpath), but SWT lives on the runtime DynamicClassLoader, so
+the widget can't see Canvas at use time. The build helper still works
+for *CDT's own build*, but exposing it as a public client API is
+deferred to v0.8.0 (when Option 2's child-first classloader, or an
+equivalent client-loader strategy, ships).
+
+### What changes vs. the original plan
+
+- `build.clj` produces TWO JARs from one pipeline:
+  `clojure-desktop-toolkit-<version>.jar` (Clojure source, SWT zips,
+  bundled nebula JAR as a resource) and `nebula-<version>.jar`
+  (just the Nebula bytecode, embedded into the CDT JAR's resources).
+- No loose `org/eclipse/nebula/**` `.class` files in the published CDT
+  JAR — only the inner JAR.
+- `ui.nebula` becomes a runtime extractor analogous to
+  `ui.internal.SWT-deps`: extract the bundled `nebula-<version>.jar`
+  to a tmp dir and pomegranate-add it. Order is: JDK 17 check →
+  `ui.internal.SWT-deps` loads (extracts SWT) → Nebula JAR extracted →
+  `ui.SWT` loads (so reflectivity scans with both SWT and Nebula on
+  classpath; `pshelf`, `pshelf-item`, etc. get auto-generated).
+- `examples/java-widget/` is **deferred to v0.8.0**. The dir is moved
+  to `examples/java-widget.deferred/` (or removed) with a README
+  pointer explaining the classloader limitation that blocks it.
+- `examples/nebula-widget/` keeps its idiomatic-CDT form and now runs
+  via `make run` using the starter pattern — because Nebula widgets
+  are defined by the same loader as SWT.
+
 ## Why source staging, not post-javac class deletion
 
 An earlier draft proposed compiling every `.java` file under each
@@ -286,9 +391,15 @@ and is genuinely tractable in pure Clojure.
   be removed and replaced with `:build`.
 - `Makefile` — `make jar` currently runs `clojure -X:jar :version
   '"0.6.0"'`. Will be replaced with `clojure -T:build jar
-  :version '"0.6.0"'`.
-- `pom.xml` — manually-maintained pom template. `b/write-pom` will use
-  it via `:src-pom`. Content unchanged.
+  :version '"<X.Y.Z>"'` where `<X.Y.Z>` is the version chosen in
+  Step 11.
+- `pom.xml` — manually-maintained pom template. `b/write-pom` uses
+  it via `:src-pom`. Content is preserved EXCEPT the `<version>` and
+  `<scm><tag>` elements, which must be bumped at release time. Note
+  pre-existing skew: `pom.xml` currently says `0.5.1` / `v0.5.1`,
+  while `Makefile` says `0.6.0`. The version bump in Step 11
+  reconciles all three (`Makefile`, `pom.xml` version, `pom.xml` scm
+  tag) to the chosen new version.
 - `examples/starter/build.clj` — existing example of tools.build in
   this repo (for the starter project, not CDT itself). Reference for
   tools.build idioms.
@@ -333,7 +444,10 @@ this prominently:
   strings).
 - A new `docs/new-and-noteworthy/version-<X.Y.Z>.md` page leading
   with the breaking change, following the project's existing
-  `version-0.4.4.md` convention.
+  `version-0.4.4.md` convention. (`version-0.5.0.md` also exists in
+  the directory but is an unwritten stub — its title is "Version 0.4.0"
+  and body is "Feature wish list". Use `version-0.4.4.md` as the
+  model, not the 0.5.0 stub.)
 - The README's top "New and Noteworthy" bullet redirected at the
   new release notes (currently points at 0.4.4 — replace it).
 - A prominent JDK 17+ banner in the README near the top.
@@ -354,10 +468,13 @@ the first user-visible breaking change in CDT's history), plus an
 **Modified**: `deps.edn` (add `:build` alias, remove depstar aliases),
 `Makefile` (point at build.clj, add `update-vendored-nebula` target,
 bump version constant), `pom.xml` (used as `:src-pom` + bump
-`<version>` element), `src/ui/internal/SWT_deps.clj` (delegate
-platform detection), `CLAUDE.md` (document new build, the JDK 17
-floor, the `(:require [ui.nebula])` contract, the vendored Nebula
-layout and update workflow, the no-Equinox constraint),
+`<version>` AND `<scm><tag>` — both currently lag behind `Makefile`),
+`src/ui/internal/SWT_deps.clj` (delegate platform detection; drop
+two pre-existing unused requires, see plan Section M1),
+`CLAUDE.md` (document new build, the JDK 17 floor, the
+`(:require [ui.nebula])` contract, the dev REPL workflow for Nebula
+widgets, the vendored Nebula layout and update workflow, the
+no-Equinox constraint),
 `README.md` (redirect the top "New and Noteworthy" bullet at the
 new release notes, add prominent JDK 17+ notice, add Using-Nebula
 and Compiling-your-own-Java-widgets sections, add Vendored-Nebula
