@@ -13,7 +13,11 @@
    [clojure.edn :as edn]
    [clojure.string :as str]
    [clojure.tools.build.api :as b]
-   [ui.build.swt :as swt-build]))
+   [deps-deploy.deps-deploy :as deps-deploy]
+   [ui.build.swt :as swt-build])
+  (:import
+   [java.io File]
+   [java.nio.file CopyOption Files StandardCopyOption]))
 
 (def lib 'io.github.coconutpalm/clojure-desktop-toolkit)
 (def class-dir         "target/classes")
@@ -73,21 +77,24 @@
   (fs/delete-tree java-staging)
   (fs/create-dirs java-staging)
   (doseq [{:keys [src exclude-pkgs exclude-files]} (vals manifest)]
-    (let [src-dir (str vendor-dir "/" src)
-          src-path (.toPath (java.io.File. ^String src-dir))]
-      (doseq [^java.io.File f (file-seq (java.io.File. ^String src-dir))
+    (let [src-dir  (str vendor-dir "/" src)
+          src-path (.toPath (File. ^String src-dir))]
+      (doseq [^File f (file-seq (File. ^String src-dir))
               :when (and (.isFile f)
                          (.endsWith (.getName f) ".java"))
               :let [rel (str (.relativize src-path (.toPath f)))]
               :when (not (excluded? rel exclude-pkgs exclude-files))]
-        (let [target (java.io.File. ^String java-staging ^String rel)]
+        (let [target (File. ^String java-staging ^String rel)]
           (.mkdirs (.getParentFile target))
-          (java.nio.file.Files/copy
+          ;; The array-type hint stays as a raw JVM signature string —
+          ;; Clojure's reader treats `^"[L...;"` literally and there's
+          ;; no shorter form for "array of CopyOption" in a type hint.
+          (Files/copy
            (.toPath f)
            (.toPath target)
            ^"[Ljava.nio.file.CopyOption;"
-           (into-array java.nio.file.CopyOption
-                       [java.nio.file.StandardCopyOption/REPLACE_EXISTING]))))))
+           (into-array CopyOption
+                       [StandardCopyOption/REPLACE_EXISTING]))))))
   (println "Staged Nebula sources to" java-staging))
 
 (defn clean [_] (b/delete {:path "target"}))
@@ -156,6 +163,19 @@
               :version   version
               :class-dir class-dir
               :jar-file  (jar-file version)}))
+
+(defn deploy
+  "Build the JAR for `:version` and push it to Clojars via
+   `slipset/deps-deploy`. Requires `CLOJARS_USERNAME` and
+   `CLOJARS_PASSWORD` in the environment — `deploy.sh` is the standard
+   wrapper that injects them. Replaces the old `:deploy` deps.edn alias
+   so the artifact path stays in sync with `(jar-file version)` without
+   a second hard-coded string in `deps.edn`."
+  [{:keys [version] :as opts}]
+  (jar opts)
+  (deps-deploy/deploy {:installer :remote
+                       :artifact  (b/resolve-path (jar-file version))
+                       :pom-file  (b/pom-path {:lib lib :class-dir class-dir})}))
 
 (defn- run-cmd!
   "Wrap b/process so a non-zero exit aborts the build with a clear
