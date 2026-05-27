@@ -16,9 +16,7 @@
 
 > **CDT does not require an Equinox runtime.** The bundled Nebula widgets
 > are curated for OSGi-free operation; widgets that hard-require Equinox
-> internals are excluded. This is permanent — OSGi and Clojure are both
-> opinionated about classloaders in ways that fight each other and would
-> defeat CDT's lightweight value proposition.
+> internals are excluded.
 
 Web applications used to be simpler and easier to build than desktop graphical applications.  With the expectations of modern CSS and Javascript, this is no longer the case.  Modern web applications are beautiful, but they are expensive.
 
